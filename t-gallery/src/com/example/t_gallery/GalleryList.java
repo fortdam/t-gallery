@@ -1,11 +1,16 @@
 package com.example.t_gallery;
 
+import java.io.File;
+import java.util.ArrayList;
+
 import android.os.Bundle;
 import android.app.Activity;
 import android.app.ExpandableListActivity;
 import android.app.ListActivity;
 import android.content.Context;
 import android.database.DataSetObserver;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
@@ -51,33 +56,67 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 			line = new LinearLayout(context);
 			line.setOrientation(LinearLayout.HORIZONTAL);
 			
-			for (int i=0; i<4; i++){
-				ImageView icon = new ImageView(context);
-				icon.setImageResource(R.drawable.photo01);
-				icon.setAdjustViewBounds(true);
-				icon.setVisibility(1);
-				icon.setMinimumWidth(270);
-				icon.setMinimumHeight(270);
-				icon.setMaxWidth(270);
-				icon.setMaxHeight(270);
-				icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
-				line.addView(icon, new LinearLayout.LayoutParams(
-						ViewGroup.LayoutParams.WRAP_CONTENT,
-						ViewGroup.LayoutParams.WRAP_CONTENT));
-			}
+
 		}
 		else {
 			line = (LinearLayout)convertView;
 		}
 		
-		
+		if (groupPosition == 0){
+			GalleryList app = (GalleryList)context;
+			
+			for (int i=0; i<4; i++){
+				BitmapFactory.Options option = new BitmapFactory.Options();
+				option.inJustDecodeBounds = true;
+				BitmapFactory.decodeFile(app.cameraFiles.get(childPosition*4 + i), option);
+				
+				float xRatio = (float)option.outWidth / (float)270;
+				float yRatio = (float)option.outHeight / (float)270;
+				
+				float scaleRatio = (xRatio<yRatio)?xRatio:yRatio;
+				
+				option.inJustDecodeBounds = false;
+				option.inSampleSize = Math.round(scaleRatio);
+				Bitmap bmp = BitmapFactory.decodeFile(app.cameraFiles.get(childPosition*4 + i), option);
+				
+				ImageView icon = new ImageView(context);
+				icon.setImageBitmap(bmp);
+				icon.setAdjustViewBounds(true);
+				icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+				
+				line.addView(icon, new LinearLayout.LayoutParams(270,270));
+			}
+		}
+		else {
+		    for (int i=0; i<4; i++){
+		    	ImageView icon = new ImageView(context);
+			    int offset = childPosition%6;
+			    icon.setImageResource(R.drawable.photo01 + offset*4 + i);
+			    icon.setAdjustViewBounds(true);
+			    icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+
+		    	line.addView(icon, new LinearLayout.LayoutParams(
+					270,
+					270));
+		    }
+		}
 		return line;
 	}
 
 	@Override
 	public int getChildrenCount(int groupPosition) {
 		// TODO Auto-generated method stub
-		return 10000;
+		if (groupPosition == 0){
+			GalleryList app = (GalleryList)context;
+			return (app.cameraFiles.size()/4);
+		}
+		else if (groupPosition == 1){
+			return 4;
+		}
+		else 
+		{
+		    return 10000;
+		}
 	}
 
 	@Override
@@ -111,7 +150,16 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 			text = (TextView)convertView;
 		}
 		
-		text.setText(new String("    Gallery "+(groupPosition+1)));
+		if (groupPosition == 0){
+			text.setText(new String("    Camera"));
+		}
+		else if (groupPosition == 1){
+			text.setText(new String("    Small Gallery"));
+		}
+		else {
+		    text.setText(new String("    Big Gallery "));
+		}
+		
 		text.setTextSize(30);
 		
 		return text;
@@ -134,11 +182,22 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 
 public class GalleryList extends ExpandableListActivity {
 	
+	public ArrayList<String> cameraFiles = new ArrayList<String>();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		//setContentView(R.layout.activity_gallery_list);
+		File cameraDir = new File(new String("/sdcard/DCIM/Camera"));
+		String fileNames[] = cameraDir.list();
+		String suffix = new String("jpg");
+		
+		for(int i=0; i<fileNames.length; i++){
+			if (fileNames[i].endsWith(suffix)){
+				String prefix = new String("/sdcard/DCIM/Camera/");
+				cameraFiles.add(prefix.concat(fileNames[i]));
+			}
+		}
 	
 		setListAdapter(new GalleryListAdapter(this));
 	}
