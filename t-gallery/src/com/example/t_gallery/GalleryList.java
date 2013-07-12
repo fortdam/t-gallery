@@ -1,8 +1,10 @@
 package com.example.t_gallery;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
 import android.app.ExpandableListActivity;
@@ -11,6 +13,7 @@ import android.content.Context;
 import android.database.DataSetObserver;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.support.v4.util.LruCache;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
@@ -29,6 +32,55 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 	
 	GalleryListAdapter(Context aContext){
 		context = aContext;
+	}
+	
+	static class ViewHolder{
+		ImageView icons[] = new ImageView[4];
+		BitmapWorkerTask task[] = new BitmapWorkerTask[4];
+	}
+	
+	class BitmapWorkerTask extends AsyncTask<Integer, Void, Bitmap>{
+
+		private final WeakReference<ImageView> iconReference;
+		private int index;
+		
+		public BitmapWorkerTask(ImageView icon){
+			iconReference = new WeakReference<ImageView>(icon);
+		}
+		
+		@Override
+		protected Bitmap doInBackground(Integer... params) {
+			// TODO Auto-generated method stub
+			GalleryList app = (GalleryList)context;
+	
+			BitmapFactory.Options option = new BitmapFactory.Options();
+			option.inJustDecodeBounds = true;
+			BitmapFactory.decodeFile(app.cameraFiles.get(params[0]), option);
+			
+			float xRatio = (float)option.outWidth / (float)270;
+			float yRatio = (float)option.outHeight / (float)270;
+			
+			float scaleRatio = (xRatio<yRatio)?xRatio:yRatio;
+			
+			option.inJustDecodeBounds = false;
+			option.inSampleSize = Math.round(scaleRatio);
+			index = params[0];
+			return BitmapFactory.decodeFile(app.cameraFiles.get(params[0]), option);
+		}
+		
+		public void onPostExecute(Bitmap bitmap){
+			GalleryList app = (GalleryList)context;
+			
+			if (iconReference != null && bitmap != null){
+				final ImageView iconView = iconReference.get();
+				
+				if (iconView != null){
+					app.addBitmapToRamCache(index, bitmap);
+					iconView.setImageBitmap(bitmap);
+				}
+			}
+		}
+		
 	}
 	
 	private Context context;
@@ -50,54 +102,59 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 			boolean isLastChild, View convertView, ViewGroup parent) {
 		// TODO Auto-generated method stub
 		LinearLayout line;
+		GalleryList app = (GalleryList)context;
+		
 		Log.e("t-Gallery","Fetch child view of "+groupPosition+"/"+childPosition);
+		
+		ViewHolder holder;
 		
 		if (convertView == null){
 			line = new LinearLayout(context);
 			line.setOrientation(LinearLayout.HORIZONTAL);
 			
-
+            holder = new ViewHolder();
+            
+            for (int i=0; i<4; i++){
+            	holder.icons[i] = new ImageView(context);
+            	holder.icons[i].setAdjustViewBounds(true);
+				holder.icons[i].setScaleType(ImageView.ScaleType.CENTER_CROP);	
+    			line.addView(holder.icons[i], new LinearLayout.LayoutParams(270,270));
+            }
+			
+			line.setTag(holder);
 		}
 		else {
 			line = (LinearLayout)convertView;
+			holder = (ViewHolder)(line.getTag()); 
+			
+			for (int i=0; i<4; i++){
+				if (holder.task[i] != null){
+					holder.task[i].cancel(true);
+					holder.task[i] = null;
+				}
+			}
 		}
 		
 		if (groupPosition == 0){
-			GalleryList app = (GalleryList)context;
-			
 			for (int i=0; i<4; i++){
-				BitmapFactory.Options option = new BitmapFactory.Options();
-				option.inJustDecodeBounds = true;
-				BitmapFactory.decodeFile(app.cameraFiles.get(childPosition*4 + i), option);
+				Bitmap bmp = app.getBitmapFromRamCace(childPosition*4 + i);
 				
-				float xRatio = (float)option.outWidth / (float)270;
-				float yRatio = (float)option.outHeight / (float)270;
-				
-				float scaleRatio = (xRatio<yRatio)?xRatio:yRatio;
-				
-				option.inJustDecodeBounds = false;
-				option.inSampleSize = Math.round(scaleRatio);
-				Bitmap bmp = BitmapFactory.decodeFile(app.cameraFiles.get(childPosition*4 + i), option);
-				
-				ImageView icon = new ImageView(context);
-				icon.setImageBitmap(bmp);
-				icon.setAdjustViewBounds(true);
-				icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
-				
-				line.addView(icon, new LinearLayout.LayoutParams(270,270));
+				if (bmp != null){
+				    holder.icons[i].setImageBitmap(bmp);	
+				}
+				else{
+				    BitmapWorkerTask task = new BitmapWorkerTask(holder.icons[i]);
+				    task.execute(childPosition*4 + i);
+				    holder.task[i] = task;
+				    holder.icons[i].setImageResource(R.drawable.empty_photo);
+				}			
 			}
 		}
 		else {
-		    for (int i=0; i<4; i++){
-		    	ImageView icon = new ImageView(context);
-			    int offset = childPosition%6;
-			    icon.setImageResource(R.drawable.photo01 + offset*4 + i);
-			    icon.setAdjustViewBounds(true);
-			    icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+		    int offset = childPosition%6;
 
-		    	line.addView(icon, new LinearLayout.LayoutParams(
-					270,
-					270));
+		    for (int i=0; i<4; i++){
+			    holder.icons[i].setImageResource(R.drawable.photo01 + offset*4 + i);
 		    }
 		}
 		return line;
@@ -183,11 +240,24 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 public class GalleryList extends ExpandableListActivity {
 	
 	public ArrayList<String> cameraFiles = new ArrayList<String>();
+	
+	private LruCache<Integer, Bitmap> mRamCache;
 
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		//setContentView(R.layout.activity_gallery_list);
+		
+		final int maxMemory = (int)(Runtime.getRuntime().maxMemory() / 1024);
+		final int cacheSize = maxMemory / 4;
+		
+		mRamCache = new LruCache<Integer, Bitmap>(cacheSize){
+			protected int sizeOf(Integer key, Bitmap bmp){
+				return (bmp.getByteCount()) / 1024;
+			}
+		};
+		
 		File cameraDir = new File(new String("/sdcard/DCIM/Camera"));
 		String fileNames[] = cameraDir.list();
 		String suffix = new String("jpg");
@@ -207,6 +277,16 @@ public class GalleryList extends ExpandableListActivity {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		//getMenuInflater().inflate(R.menu.activity_gallery_list, menu);
 		return true;
+	}
+	
+	public Bitmap getBitmapFromRamCace(int key){
+	    return mRamCache.get(key);	
+	}
+	
+	public void addBitmapToRamCache(int key, Bitmap bmp){
+		if (null == getBitmapFromRamCace(key)){
+			mRamCache.put(key, bmp);
+		}
 	}
 
 }
