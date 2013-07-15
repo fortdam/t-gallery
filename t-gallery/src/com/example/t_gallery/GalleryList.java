@@ -266,7 +266,8 @@ public class GalleryList extends ExpandableListActivity {
 		mImageList = getContentResolver().query(Media.EXTERNAL_CONTENT_URI, new String[]{Media._ID}, null, null, null);
 		
 		final int maxMemory = (int)(Runtime.getRuntime().maxMemory() / 1024);
-		final int cacheSize = maxMemory / 8;
+		final int cacheSize = maxMemory / 4;
+				
 		
 		mRamCache = new LruCache<Integer, Bitmap>(cacheSize){
 			protected int sizeOf(Integer key, Bitmap bmp){
