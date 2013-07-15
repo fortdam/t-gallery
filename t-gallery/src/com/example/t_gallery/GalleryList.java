@@ -6,10 +6,13 @@ import java.util.ArrayList;
 
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.MediaStore.Images.Media;
+import android.provider.MediaStore.Images.Thumbnails;
 import android.app.Activity;
 import android.app.ExpandableListActivity;
 import android.app.ListActivity;
 import android.content.Context;
+import android.database.Cursor;
 import android.database.DataSetObserver;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -49,11 +52,21 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 		}
 		
 		@Override
-		protected Bitmap doInBackground(Integer... params) {
+		protected  Bitmap doInBackground(Integer... params) {
 			// TODO Auto-generated method stub
 			GalleryList app = (GalleryList)context;
+			long id = 0;
+		    BitmapFactory.Options options = new BitmapFactory.Options();	
+
+			
+			synchronized (app.mImageList){
+			app.mImageList.moveToPosition(params[0]);
+			id = app.mImageList.getLong(app.mImageList.getColumnIndex(Media._ID));
+			}
+			
+	        return Thumbnails.getThumbnail(app.getContentResolver(), id, Thumbnails.MINI_KIND, options);
 	
-			BitmapFactory.Options option = new BitmapFactory.Options();
+			/*BitmapFactory.Options option = new BitmapFactory.Options();
 			option.inJustDecodeBounds = true;
 			BitmapFactory.decodeFile(app.cameraFiles.get(params[0]), option);
 			
@@ -65,7 +78,7 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 			option.inJustDecodeBounds = false;
 			option.inSampleSize = Math.round(scaleRatio);
 			index = params[0];
-			return BitmapFactory.decodeFile(app.cameraFiles.get(params[0]), option);
+			return BitmapFactory.decodeFile(app.cameraFiles.get(params[0]), option);*/
 		}
 		
 		public void onPostExecute(Bitmap bitmap){
@@ -165,7 +178,7 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 		// TODO Auto-generated method stub
 		if (groupPosition == 0){
 			GalleryList app = (GalleryList)context;
-			return (app.cameraFiles.size()/4);
+			return (app.mImageList.getCount()/4);
 		}
 		else if (groupPosition == 1){
 			return 4;
@@ -249,8 +262,11 @@ public class GalleryList extends ExpandableListActivity {
 		super.onCreate(savedInstanceState);
 		//setContentView(R.layout.activity_gallery_list);
 		
+		
+		mImageList = getContentResolver().query(Media.EXTERNAL_CONTENT_URI, new String[]{Media._ID}, null, null, null);
+		
 		final int maxMemory = (int)(Runtime.getRuntime().maxMemory() / 1024);
-		final int cacheSize = maxMemory / 4;
+		final int cacheSize = maxMemory / 8;
 		
 		mRamCache = new LruCache<Integer, Bitmap>(cacheSize){
 			protected int sizeOf(Integer key, Bitmap bmp){
@@ -258,6 +274,7 @@ public class GalleryList extends ExpandableListActivity {
 			}
 		};
 		
+		/*
 		File cameraDir = new File(new String("/sdcard/DCIM/Camera"));
 		String fileNames[] = cameraDir.list();
 		String suffix = new String("jpg");
@@ -268,6 +285,8 @@ public class GalleryList extends ExpandableListActivity {
 				cameraFiles.add(prefix.concat(fileNames[i]));
 			}
 		}
+		 */
+		
 	
 		setListAdapter(new GalleryListAdapter(this));
 	}
@@ -288,5 +307,7 @@ public class GalleryList extends ExpandableListActivity {
 			mRamCache.put(key, bmp);
 		}
 	}
+	
+	public Cursor mImageList;
 
 }
