@@ -16,14 +16,18 @@ import android.database.Cursor;
 import android.database.DataSetObserver;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.support.v4.util.LruCache;
+import android.util.LruCache;
 import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AbsListView;
+import android.widget.AbsListView.OnScrollListener;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.BaseExpandableListAdapter;
+import android.widget.ExpandableListView;
+import android.widget.ExpandableListView.OnChildClickListener;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListAdapter;
@@ -56,6 +60,7 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 			// TODO Auto-generated method stub
 			GalleryList app = (GalleryList)context;
 			long id = 0;
+			index = params[0];
 		    BitmapFactory.Options options = new BitmapFactory.Options();	
 
 			
@@ -64,7 +69,18 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 			id = app.mImageList.getLong(app.mImageList.getColumnIndex(Media._ID));
 			}
 			
-	        return Thumbnails.getThumbnail(app.getContentResolver(), id, Thumbnails.MINI_KIND, options);
+			Bitmap thumb = Thumbnails.getThumbnail(app.getContentResolver(), id, Thumbnails.MINI_KIND, options);
+			int height = thumb.getHeight();
+			int width = thumb.getWidth();
+			
+			if (height > width){
+				thumb = Bitmap.createBitmap(thumb, 0, (height-width)/2, width, width);
+			}
+			else{
+				thumb = Bitmap.createBitmap(thumb, (width-height)/2, 0, height, height);
+			}
+			
+	        return Bitmap.createScaledBitmap(thumb,170,170,false);
 	
 			/*BitmapFactory.Options option = new BitmapFactory.Options();
 			option.inJustDecodeBounds = true;
@@ -250,7 +266,8 @@ class GalleryListAdapter extends BaseExpandableListAdapter{
 
 }
 
-public class GalleryList extends ExpandableListActivity {
+public class GalleryList extends ExpandableListActivity 
+	implements OnScrollListener{
 	
 	public ArrayList<String> cameraFiles = new ArrayList<String>();
 	
@@ -261,17 +278,15 @@ public class GalleryList extends ExpandableListActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		//setContentView(R.layout.activity_gallery_list);
-		
-		
+				
 		mImageList = getContentResolver().query(Media.EXTERNAL_CONTENT_URI, new String[]{Media._ID}, null, null, null);
 		
 		final int maxMemory = (int)(Runtime.getRuntime().maxMemory() / 1024);
 		final int cacheSize = maxMemory / 4;
-				
 		
 		mRamCache = new LruCache<Integer, Bitmap>(cacheSize){
 			protected int sizeOf(Integer key, Bitmap bmp){
-				return (bmp.getByteCount()) / 1024;
+				return (bmp.getByteCount()/1024);
 			}
 		};
 		
@@ -290,6 +305,7 @@ public class GalleryList extends ExpandableListActivity {
 		
 	
 		setListAdapter(new GalleryListAdapter(this));
+		getExpandableListView().setOnScrollListener(this);
 	}
 
 	@Override
@@ -298,17 +314,36 @@ public class GalleryList extends ExpandableListActivity {
 		//getMenuInflater().inflate(R.menu.activity_gallery_list, menu);
 		return true;
 	}
-	
-	public Bitmap getBitmapFromRamCace(int key){
-	    return mRamCache.get(key);	
+		
+	public synchronized Bitmap getBitmapFromRamCace(int key){
+		return mRamCache.get(key);	
 	}
 	
-	public void addBitmapToRamCache(int key, Bitmap bmp){
+	public synchronized void addBitmapToRamCache(int key, Bitmap bmp){
 		if (null == getBitmapFromRamCace(key)){
 			mRamCache.put(key, bmp);
 		}
 	}
 	
 	public Cursor mImageList;
+
+
+	@Override
+	public void onScroll(AbsListView view, int firstVisibleItem,
+			int visibleItemCount, int totalItemCount) {
+		// TODO Auto-generated method stub
+		
+		/*ExpandableListView list = getExpandableListView();
+		long index = list.getExpandableListPosition(firstVisibleItem);
+		int groupIndex = list.getPackedPositionGroup(index);
+		int childIndex = list.getPackedPositionChild(index);onChild(index);
+		Log.i("t-Gallery", "on scrolling "+index+childIndex+groupIndex);*/
+	}
+
+	@Override
+	public void onScrollStateChanged(AbsListView view, int scrollState) {
+		// TODO Auto-generated method stub
+		
+	}
 
 }
