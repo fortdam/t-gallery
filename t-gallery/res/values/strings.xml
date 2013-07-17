@@ -2,7 +2,7 @@
 <resources>
 
     <string name="app_name">t-gallery</string>
-    <string name="hello_world">Hello world!</string>
+    <string name="collapse">Collapse</string>
     <string name="menu_settings">Settings</string>
 
 </resources>

@@ -13,7 +13,7 @@
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme"
-        android:largeHeap="true">
+        android:largeHeap="true" android:debuggable="false">
         <activity
             android:name="com.example.t_gallery.GalleryList"
             android:label="@string/app_name" >
