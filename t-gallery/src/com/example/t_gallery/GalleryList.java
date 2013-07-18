@@ -1,6 +1,7 @@
 package com.example.t_gallery;
 
 import java.lang.ref.WeakReference;
+import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -19,9 +20,12 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.LruCache;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.ViewTreeObserver.OnDrawListener;
 import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
 import android.widget.BaseExpandableListAdapter;
@@ -54,6 +58,9 @@ public class GalleryList extends ExpandableListActivity
 		static public final String ALBUM_WHERE_CLAUSE = "1) GROUP BY (1"; /*This is a trick to use GROUP BY */
 		static public final String IMAGE_PROJECTION[] = {Media._ID};
 		static public final String IMAGE_WHERE_CLAUSE = Media.BUCKET_ID + " = ?";
+		
+		/*UI Effect*/
+		static public final int LIST_ANIM_DURATION = 500; /*count in ms*/
 	}
 	
 	private void fetchGalleryList(){
@@ -98,10 +105,62 @@ public class GalleryList extends ExpandableListActivity
 	
 	private TextView shortcut;
 	
+	private HashMap<Long, Integer> mTopMap = new HashMap<Long, Integer>();
+	
 	@Override
 	protected void onResume(){
 		super.onResume();
-		shortcut = (TextView)findViewById(R.id.collapse_shortcut);		
+		shortcut = (TextView)findViewById(R.id.collapse_shortcut);
+		
+		/*For expand animation*/
+		getExpandableListView().setOnGroupClickListener(new ExpandableListView.OnGroupClickListener(){
+
+			@Override
+			public boolean onGroupClick(ExpandableListView parent, View view,
+					int groupPosition, long id) {
+				
+				for (int i=0; i<parent.getChildCount(); i++){
+					long itemId = parent.getItemIdAtPosition(parent.getFirstVisiblePosition() + i);
+					View listItem = parent.getChildAt(i);
+					mTopMap.put(itemId, listItem.getTop());
+					//listItem.setHasTransientState(true);
+				}
+				
+				final ViewTreeObserver observer = parent.getViewTreeObserver();
+				final ExpandableListView listView = parent;
+				
+				observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener (){
+
+					@Override
+					public boolean onPreDraw() {
+						observer.removeOnPreDrawListener(this);
+						
+						for (int i=0; i<listView.getChildCount(); i++){
+							View listItem = listView.getChildAt(i);
+							long itemId = listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i);
+							Integer oldTop = mTopMap.get(itemId);
+							
+							if (oldTop != null){
+								listItem.setTranslationY(oldTop.intValue() - listItem.getTop());
+								listItem.animate().translationY(0).setDuration(500);
+								//listItem.setHasTransientState(false);
+								mTopMap.remove(listItem);
+							}
+							else {
+								/*New object entered*/
+							}
+						}
+						return true;
+					}
+
+					
+				});
+				return false;
+			}
+			
+		});
+		
+
 	}
 
 	@Override
@@ -303,7 +362,7 @@ public class GalleryList extends ExpandableListActivity
 			ViewHolder holder;
 			
 			/*Prepare the view (no content yet)*/
-			if (convertView == null){
+			if (convertView == null || convertView.hasTransientState()){
 				line = new LinearLayout(getApplicationContext());
 				line.setOrientation(LinearLayout.HORIZONTAL);
 				
@@ -382,21 +441,23 @@ public class GalleryList extends ExpandableListActivity
 		public View getGroupView(int groupPosition, boolean isExpanded,
 				View convertView, ViewGroup parent) {
 			
-			TextView text;
+			LinearLayout item;
 			
-			if (convertView == null){
-				text = new TextView(getApplicationContext());
+			if (convertView == null || convertView.hasTransientState()){
+				LayoutInflater inflater = (LayoutInflater)getApplicationContext().getSystemService
+					      (Context.LAYOUT_INFLATER_SERVICE);
+				item = (LinearLayout)inflater.inflate(R.layout.gallery_item, null);
 			}
 			else {
-				text = (TextView)convertView;
+				item = (LinearLayout)convertView;
 			}
 			
 			mGalleryList.moveToPosition(groupPosition);
 			int count = mImageLists[groupPosition].getCount();
+			TextView text = (TextView)item.getChildAt(0);
 			text.setText("     "+mGalleryList.getString(mGalleryList.getColumnIndex(Media.BUCKET_DISPLAY_NAME))+" ("+count+")");
-			text.setTextSize(30);
 			
-			return text;
+			return item;
 		}
 
 		@Override
@@ -409,4 +470,6 @@ public class GalleryList extends ExpandableListActivity
 			return false;
 		}
 	}
+	
+	
 }

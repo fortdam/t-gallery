@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:background="#ffffff"
-        android:textSize="30sp"
+        android:textSize="0sp"
         android:text="@string/collapse" />
     
 </AbsoluteLayout>
