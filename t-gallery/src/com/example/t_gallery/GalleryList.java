@@ -392,7 +392,8 @@ public class GalleryList extends ExpandableListActivity
 			}
 			
 			mGalleryList.moveToPosition(groupPosition);
-			text.setText("     "+mGalleryList.getString(mGalleryList.getColumnIndex(Media.BUCKET_DISPLAY_NAME)));
+			int count = mImageLists[groupPosition].getCount();
+			text.setText("     "+mGalleryList.getString(mGalleryList.getColumnIndex(Media.BUCKET_DISPLAY_NAME))+" ("+count+")");
 			text.setTextSize(30);
 			
 			return text;
