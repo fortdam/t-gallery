@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="30sp" 
-        android:background="#eeeeee"
+        android:background="#000000"
         android:alpha="1.0" />
     
 

@@ -156,12 +156,15 @@ public class GalleryList extends ExpandableListActivity
 				
 				observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener (){
 
+					public ArrayList<View> mInvisibleItems = new ArrayList<View>();
+					
 					@Override
 					public boolean onPreDraw() {
 						observer.removeOnPreDrawListener(this);
 						
 						int firstMatchingItem = -1;
 						int lastMatchingItem = -1;
+						int lastMatchingItemInNewList = -1;
 						int upDist = 0; 
 						int downDist = 0;
 						
@@ -179,6 +182,7 @@ public class GalleryList extends ExpandableListActivity
 										firstMatchingItem = j;
 									}
 									lastMatchingItem = j;
+									lastMatchingItemInNewList = i;
 									
 									if (i==0){
 										/*The first item is found in old list, then we could anchor anim*/
@@ -197,6 +201,14 @@ public class GalleryList extends ExpandableListActivity
 								}
 							}
 						}
+						
+						if (lastMatchingItemInNewList!=-1 && lastMatchingItemInNewList<listView.getChildCount()-1){
+							for (int i=lastMatchingItemInNewList+1; i<listView.getChildCount(); i++){
+								listView.getChildAt(i).setVisibility(View.INVISIBLE);
+								mInvisibleItems.add(listView.getChildAt(i));
+							}
+						}
+						
 						
 						if (upDist == 0) {
 							Position item = mPositionArray.get(firstMatchingItem);
@@ -239,11 +251,25 @@ public class GalleryList extends ExpandableListActivity
 								view.animate().translationY(pos.mTop + upDist).setDuration(500).withEndAction(new ViewDetacher(pparent, view));
 							}
 							else if (i>lastMatchingItem){
-								ViewGroup.LayoutParams layout = view.getLayoutParams();
 								pparent.addView(view, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 								view.setTranslationY(pos.mTop);
 								view.animate().translationY(pos.mTop + downDist).setDuration(500).withEndAction(new ViewDetacher(pparent, view));				
 							}
+							
+							final ViewTreeObserver parentObserver =  pparent.getViewTreeObserver();
+							parentObserver.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+								
+								@Override
+								public boolean onPreDraw() {
+									parentObserver.removeOnPreDrawListener(this);
+									
+									while (mInvisibleItems.size() > 0){
+										mInvisibleItems.get(0).setVisibility(View.VISIBLE);
+										mInvisibleItems.remove(0);
+									}
+									return false;
+								}
+							});
 						}
 						
 						int oldLastBottom = mPositionArray.get(mPositionArray.size()-1).mBottom;
@@ -592,7 +618,7 @@ public class GalleryList extends ExpandableListActivity
 			mGalleryList.moveToPosition(groupPosition);
 			int count = mImageLists[groupPosition].getCount();
 			TextView text = (TextView)item.getChildAt(0);
-			text.setText("     "+mGalleryList.getString(mGalleryList.getColumnIndex(Media.BUCKET_DISPLAY_NAME))+" ("+count+")");
+			text.setText(mGalleryList.getString(mGalleryList.getColumnIndex(Media.BUCKET_DISPLAY_NAME))+" ("+count+")");
 			
 			return item;
 		}
