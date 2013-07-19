@@ -7,7 +7,11 @@
     <ExpandableListView 
         android:id="@id/android:list"
         android:layout_width="fill_parent"
-        android:layout_height="fill_parent" />
+        android:layout_height="fill_parent"
+        android:background="#ffffff"
+        android:divider="#ffffff"
+        android:alpha="1.0" 
+        />
     
     <TextView
         android:id="@+id/collapse_shortcut"
@@ -15,7 +19,7 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:background="#ffffff"
-        android:textSize="0sp"
+        android:textSize="300sp"
         android:text="@string/collapse" />
     
 </AbsoluteLayout>

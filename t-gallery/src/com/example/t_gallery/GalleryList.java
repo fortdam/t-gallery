@@ -1,6 +1,7 @@
 package com.example.t_gallery;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -18,6 +19,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.util.LruCache;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -100,18 +102,34 @@ public class GalleryList extends ExpandableListActivity
 		};
 	
 		setListAdapter(new GalleryListAdapter());
-		getExpandableListView().setOnScrollListener(this);
+		//getExpandableListView().setOnScrollListener(this);
 	}
 	
 	private TextView shortcut;
 	
-	private HashMap<Long, Integer> mTopMap = new HashMap<Long, Integer>();
+	class Position {
+		Position(long id, int top, int bottom, View view){
+			mId = id;
+			mTop = top;
+			mBottom = bottom;
+			mView = view;
+		}
+		public long mId;
+		public int mTop;
+		public int mBottom;
+		public View mView;
+	}
+	
+	private ArrayList<Position> mPositionArray = new ArrayList<Position>();
+	
 	
 	@Override
 	protected void onResume(){
 		super.onResume();
 		shortcut = (TextView)findViewById(R.id.collapse_shortcut);
+		shortcut.setVisibility(View.INVISIBLE);
 		
+				
 		/*For expand animation*/
 		getExpandableListView().setOnGroupClickListener(new ExpandableListView.OnGroupClickListener(){
 
@@ -119,13 +137,20 @@ public class GalleryList extends ExpandableListActivity
 			public boolean onGroupClick(ExpandableListView parent, View view,
 					int groupPosition, long id) {
 				
+				final boolean isCollapse = parent.isGroupExpanded(groupPosition);
+				
+				if (isCollapse){
+					return false; /*Only work for expand now*/
+				}
+				
+				
 				for (int i=0; i<parent.getChildCount(); i++){
 					long itemId = parent.getItemIdAtPosition(parent.getFirstVisiblePosition() + i);
 					View listItem = parent.getChildAt(i);
-					mTopMap.put(itemId, listItem.getTop());
-					//listItem.setHasTransientState(true);
+					listItem.setTag(R.id.recyclable, false);
+					mPositionArray.add(new Position(itemId, listItem.getTop(), listItem.getBottom(), listItem));
 				}
-				
+
 				final ViewTreeObserver observer = parent.getViewTreeObserver();
 				final ExpandableListView listView = parent;
 				
@@ -135,21 +160,110 @@ public class GalleryList extends ExpandableListActivity
 					public boolean onPreDraw() {
 						observer.removeOnPreDrawListener(this);
 						
+						int firstMatchingItem = -1;
+						int lastMatchingItem = -1;
+						int upDist = 0; 
+						int downDist = 0;
+						
+						
 						for (int i=0; i<listView.getChildCount(); i++){
 							View listItem = listView.getChildAt(i);
 							long itemId = listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i);
-							Integer oldTop = mTopMap.get(itemId);
 							
-							if (oldTop != null){
-								listItem.setTranslationY(oldTop.intValue() - listItem.getTop());
-								listItem.animate().translationY(0).setDuration(500);
-								//listItem.setHasTransientState(false);
-								mTopMap.remove(listItem);
-							}
-							else {
-								/*New object entered*/
+							for (int j=0; j<mPositionArray.size(); j++){
+								Position oldPos = mPositionArray.get(j);
+								
+								if (itemId == oldPos.mId){
+									
+									if (firstMatchingItem == -1){
+										firstMatchingItem = j;
+									}
+									lastMatchingItem = j;
+									
+									if (i==0){
+										/*The first item is found in old list, then we could anchor anim*/
+										upDist = listItem.getTop() - oldPos.mTop;
+									}
+									
+									if (i==listView.getChildCount()-1){
+										/*The last item is found in the old list, then we could anchor anim*/
+										downDist = listItem.getBottom() - oldPos.mBottom;
+									}
+									
+									listItem.setTranslationY(oldPos.mTop - listItem.getTop());
+									listItem.animate().translationY(0).setDuration(500);
+									
+									break;
+								}
 							}
 						}
+						
+						if (upDist == 0) {
+							Position item = mPositionArray.get(firstMatchingItem);
+							upDist = 0 - item.mBottom; 
+						}
+						
+						if (downDist == 0) {
+							Position item = mPositionArray.get(lastMatchingItem);
+							downDist = listView.getBottom() - item.mTop;
+						}
+						
+						ViewGroup pparent = (ViewGroup)listView.getParent();
+						
+						class ViewDetacher implements Runnable{
+							ViewGroup mParent;
+							View mChild;
+							
+							public ViewDetacher(ViewGroup parent, View child){
+								mParent = parent;
+								mChild = child;
+							}
+							
+							public void run(){
+								mParent.removeView(mChild);
+							}
+						}
+						
+						for (int i=0; i<mPositionArray.size(); i++){
+							Position pos = mPositionArray.get(i);
+							ImageView view = new ImageView(getApplicationContext()); 
+							pos.mView.buildDrawingCache();
+							Bitmap bmpCache = pos.mView.getDrawingCache();
+							view.setImageBitmap(bmpCache);
+							
+							view.setTag(R.id.recyclable, true);
+							
+							if (i<firstMatchingItem){
+								pparent.addView(view, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+								view.setTranslationY(pos.mTop);
+								view.animate().translationY(pos.mTop + upDist).setDuration(500).withEndAction(new ViewDetacher(pparent, view));
+							}
+							else if (i>lastMatchingItem){
+								ViewGroup.LayoutParams layout = view.getLayoutParams();
+								pparent.addView(view, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+								view.setTranslationY(pos.mTop);
+								view.animate().translationY(pos.mTop + downDist).setDuration(500).withEndAction(new ViewDetacher(pparent, view));				
+							}
+						}
+						
+						int oldLastBottom = mPositionArray.get(mPositionArray.size()-1).mBottom;
+						
+						if (oldLastBottom < listView.getBottom()){
+							
+							shortcut.setText(" ");
+							shortcut.setTranslationY(oldLastBottom);
+							shortcut.setVisibility(View.VISIBLE);
+							shortcut.animate().translationY(downDist+oldLastBottom).setDuration(500).withEndAction(new Runnable(){
+
+								@Override
+								public void run() {
+									shortcut.setVisibility(View.INVISIBLE);									
+								}
+								
+							});
+						}
+
+						mPositionArray.clear();
 						return true;
 					}
 
@@ -341,7 +455,28 @@ public class GalleryList extends ExpandableListActivity
 	    class ViewHolder{
 			ImageView icons[] = new ImageView[Config.THUMBNAILS_PER_LINE];
 			BitmapWorkerTask task[] = new BitmapWorkerTask[Config.THUMBNAILS_PER_LINE];
+			boolean inTransient = false;
 		}
+	    
+	    @Override
+	    public int getChildTypeCount(){
+	    	return 1;
+	    }
+	    
+	    @Override
+	    public int getChildType(int groupPosition, int childPosition){
+	    	return 0;
+	    }
+	    
+	    @Override
+	    public int getGroupTypeCount(){
+	    	return 1;
+	    }
+	    
+	    @Override
+	    public int getGroupType(int groupPosition){
+	    	return 0;
+	    }
 	    
 		@Override
 		public Object getChild(int groupPosition, int childPosition) {
@@ -362,7 +497,7 @@ public class GalleryList extends ExpandableListActivity
 			ViewHolder holder;
 			
 			/*Prepare the view (no content yet)*/
-			if (convertView == null || convertView.hasTransientState()){
+			if (convertView == null || !getRecyclable(convertView)){
 				line = new LinearLayout(getApplicationContext());
 				line.setOrientation(LinearLayout.HORIZONTAL);
 				
@@ -375,11 +510,12 @@ public class GalleryList extends ExpandableListActivity
 	    			line.addView(holder.icons[i], new LinearLayout.LayoutParams(Config.THUMBNAIL_WIDTH,Config.THUMBNAIL_HEIGHT));
 	            }
 				
-				line.setTag(holder);
+				line.setTag(R.id.data_holder, holder);
+				line.setTag(R.id.recyclable, true);
 			}
 			else {
 				line = (LinearLayout)convertView;
-				holder = (ViewHolder)(line.getTag()); 
+				holder = (ViewHolder)(line.getTag(R.id.data_holder)); 
 				
 				for (int i=0; i<Config.THUMBNAILS_PER_LINE; i++){
 					if (holder.task[i] != null){
@@ -443,10 +579,11 @@ public class GalleryList extends ExpandableListActivity
 			
 			LinearLayout item;
 			
-			if (convertView == null || convertView.hasTransientState()){
+			if (convertView == null || !getRecyclable(convertView)){
 				LayoutInflater inflater = (LayoutInflater)getApplicationContext().getSystemService
 					      (Context.LAYOUT_INFLATER_SERVICE);
 				item = (LinearLayout)inflater.inflate(R.layout.gallery_item, null);
+				item.setTag(R.id.recyclable, true);
 			}
 			else {
 				item = (LinearLayout)convertView;
@@ -469,7 +606,13 @@ public class GalleryList extends ExpandableListActivity
 		public boolean isChildSelectable(int groupPosition, int childPosition) {
 			return false;
 		}
-	}
-	
-	
+		
+		public void setRecyclable(boolean flag, View item){
+			item.setTag(R.id.recyclable,flag);
+		}
+		
+		public boolean getRecyclable(View item){
+			return (Boolean)item.getTag(R.id.recyclable);
+		}
+	}	 
 }
