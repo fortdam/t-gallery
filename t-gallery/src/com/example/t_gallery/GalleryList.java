@@ -168,7 +168,7 @@ public class GalleryList extends ExpandableListActivity
 						int upDist = 0; 
 						int downDist = 0;
 						
-						
+						listView.setWillNotDraw(true);
 						for (int i=0; i<listView.getChildCount(); i++){
 							View listItem = listView.getChildAt(i);
 							long itemId = listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i);
@@ -219,7 +219,7 @@ public class GalleryList extends ExpandableListActivity
 							Position item = mPositionArray.get(lastMatchingItem);
 							downDist = listView.getBottom() - item.mTop;
 						}
-						
+					
 						ViewGroup pparent = (ViewGroup)listView.getParent();
 						
 						class ViewDetacher implements Runnable{
@@ -290,7 +290,7 @@ public class GalleryList extends ExpandableListActivity
 						}
 
 						mPositionArray.clear();
-						return true;
+						return false; /*Bypass the drawing !!! In case we re-layout the container*/
 					}
 
 					
