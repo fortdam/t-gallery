@@ -2,7 +2,6 @@ package com.example.t_gallery;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -22,14 +21,12 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.util.LruCache;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewPropertyAnimator;
 import android.view.ViewTreeObserver;
-import android.view.ViewTreeObserver.OnDrawListener;
 import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
 import android.widget.BaseExpandableListAdapter;
@@ -64,7 +61,7 @@ public class GalleryList extends ExpandableListActivity
 		static public final String IMAGE_WHERE_CLAUSE = Media.BUCKET_ID + " = ?";
 		
 		/*UI Effect*/
-		static public final int LIST_ANIM_DURATION = 500; /*count in ms*/
+		static public final int LIST_ANIM_DURATION = 300; /*count in ms*/
 	}
 	
 	private void fetchGalleryList(){
@@ -128,6 +125,17 @@ public class GalleryList extends ExpandableListActivity
 		protected ExpandableListView listView;
 		protected ViewGroup container;
 		
+		public boolean inAnimation = false;
+		
+		class ClearAnimState implements Runnable{
+
+			@Override
+			public void run() {
+				inAnimation = false;
+			}
+			
+		}
+		
 		class ViewDetacher implements Runnable{
 			ViewGroup mParent;
 			View mChild;
@@ -139,6 +147,7 @@ public class GalleryList extends ExpandableListActivity
 			
 			public void run(){
 				mParent.removeView(mChild);
+				inAnimation = false;
 			}
 		}
 		
@@ -153,6 +162,7 @@ public class GalleryList extends ExpandableListActivity
 			
 			public void run(){
 				item.setVisibility(value);
+				inAnimation = false;
 			}
 		}
 		
@@ -192,9 +202,11 @@ public class GalleryList extends ExpandableListActivity
 		}
 		
 		protected ViewPropertyAnimator animateTranslationY(View item, boolean inList, float start, float end){
+			inAnimation = true;
+			
 			if (inList){
 				item.setTranslationY(start);
-				return item.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION);
+				return item.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ClearAnimState());
 			}
 			else {
 				ImageView bmpCache = new ImageView(item.getContext());
@@ -208,9 +220,10 @@ public class GalleryList extends ExpandableListActivity
 		}
 		
 		protected ViewPropertyAnimator animateTranslationY2(View item, boolean inList, float start, float end){
+			inAnimation = true;
 			if (inList){
 				item.setTranslationY(start);
-				return item.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION);
+				return item.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ClearAnimState());
 			}
 			else {
 				ImageView bmpCache = new ImageView(item.getContext());
@@ -250,7 +263,7 @@ public class GalleryList extends ExpandableListActivity
 			mask.setTranslationY(start);
 			mask.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ViewDetacher(container, mask));
 			*/
-			
+			inAnimation = true;
 			shortcut.setVisibility(View.VISIBLE);
 			shortcut.setText(" ");
 			shortcut.setY(start);
@@ -259,6 +272,7 @@ public class GalleryList extends ExpandableListActivity
 				public void run() {
 					// TODO Auto-generated method stub
 					shortcut.setVisibility(View.INVISIBLE);
+					inAnimation = false;
 				}
 			});
 		}
@@ -494,6 +508,10 @@ public class GalleryList extends ExpandableListActivity
 				int groupPosition, long id) {
 			// TODO Auto-generated method stub
 			
+			if (collapse.inAnimation || expand.inAnimation){
+				return true; /*Ignore if the animatin is ongoing*/
+			}
+			
 			if (myList.isGroupExpanded(groupPosition)){
 				return collapse.onGroupClick(parent, v, groupPosition, id);
 			}
@@ -511,9 +529,6 @@ public class GalleryList extends ExpandableListActivity
 		shortcut.setVisibility(View.INVISIBLE);
 		
 		new GroupClickHandler(getExpandableListView(), (ViewGroup)findViewById(R.id.root_container));
-		
-		//new ExpandAnimHandler(getExpandableListView(), (ViewGroup)findViewById(R.id.root_container));
-		//new CollapseAnimHandler(getExpandableListView(), (ViewGroup)findViewById(R.id.root_container));
 	}
 
 	@Override
