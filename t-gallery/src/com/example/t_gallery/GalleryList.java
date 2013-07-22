@@ -119,19 +119,27 @@ public class GalleryList extends ExpandableListActivity
 		public View mView;
 	}
 	
+	interface AnimCallback {
+		void end();
+	}
 	
 	class AnimHandler {
 		protected PositionArray mPositionArray = new PositionArray();
 		protected ExpandableListView listView;
 		protected ViewGroup container;
 		
-		public boolean inAnimation = false;
+        protected AnimCallback AnimCB = null;
+        
+		public int inAnimation = 0;
 		
 		class ClearAnimState implements Runnable{
 
 			@Override
 			public void run() {
-				inAnimation = false;
+				inAnimation--;
+				if (inAnimation == 0 && AnimCB != null){
+					AnimCB.end();
+				}
 			}
 			
 		}
@@ -147,7 +155,11 @@ public class GalleryList extends ExpandableListActivity
 			
 			public void run(){
 				mParent.removeView(mChild);
-				inAnimation = false;
+				inAnimation--;
+				
+				if (inAnimation == 0 && AnimCB != null){
+					AnimCB.end();
+				}
 			}
 		}
 		
@@ -162,7 +174,12 @@ public class GalleryList extends ExpandableListActivity
 			
 			public void run(){
 				item.setVisibility(value);
-				inAnimation = false;
+				inAnimation--;
+				
+				if (inAnimation == 0 && AnimCB != null){
+					AnimCB.end();
+				}
+				
 			}
 		}
 		
@@ -202,7 +219,7 @@ public class GalleryList extends ExpandableListActivity
 		}
 		
 		protected ViewPropertyAnimator animateTranslationY(View item, boolean inList, float start, float end){
-			inAnimation = true;
+			inAnimation++;
 			
 			if (inList){
 				item.setTranslationY(start);
@@ -220,12 +237,14 @@ public class GalleryList extends ExpandableListActivity
 		}
 		
 		protected ViewPropertyAnimator animateTranslationY2(View item, boolean inList, float start, float end){
-			inAnimation = true;
+			inAnimation++;
+			
 			if (inList){
 				item.setTranslationY(start);
 				return item.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ClearAnimState());
 			}
 			else {
+				inAnimation++;
 				ImageView bmpCache = new ImageView(item.getContext());
 				item.buildDrawingCache();
 				bmpCache.setImageBitmap(item.getDrawingCache());
@@ -234,8 +253,8 @@ public class GalleryList extends ExpandableListActivity
 				container.addView(bmpCache, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 				bmpCache.setTranslationY(start);
 				
-				final ViewDetacher run1= new ViewDetacher(container, bmpCache);
-				final ViewVisible run2 = new ViewVisible(item, View.VISIBLE);
+				final ViewVisible run1 = new ViewVisible(item, View.VISIBLE);
+				final ViewDetacher run2= new ViewDetacher(container, bmpCache);
 				
 				return bmpCache.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new Runnable(){
 
@@ -263,18 +282,12 @@ public class GalleryList extends ExpandableListActivity
 			mask.setTranslationY(start);
 			mask.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ViewDetacher(container, mask));
 			*/
-			inAnimation = true;
+			inAnimation++;
+			
 			shortcut.setVisibility(View.VISIBLE);
 			shortcut.setText(" ");
 			shortcut.setY(start);
-			shortcut.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new Runnable(){
-
-				public void run() {
-					// TODO Auto-generated method stub
-					shortcut.setVisibility(View.INVISIBLE);
-					inAnimation = false;
-				}
-			});
+			shortcut.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ViewVisible(shortcut, View.INVISIBLE));
 		}
 		
 		protected void buildPositionMap(boolean setTranientState){
@@ -387,6 +400,14 @@ public class GalleryList extends ExpandableListActivity
 		public CollapseAnimHandler(ExpandableListView aListView, ViewGroup aContainer){
 			super(aListView, aContainer);
 			
+			AnimCB = new AnimCallback(){
+				@Override
+				public void end() {
+					if (backupListBG != null){
+						listView.setBackground(backupListBG);
+					}
+				}
+			};
 			//listView.setOnGroupClickListener(this);
 		}
 	
@@ -472,13 +493,6 @@ public class GalleryList extends ExpandableListActivity
 				if (listView.getChildAt(listView.getChildCount()-1).getBottom() < listView.getBottom()){
 					animateMask(downBound, listView.getChildAt(listView.getChildCount()-1).getBottom());
 				}
-                
-				listView.getChildAt(0).animate().setDuration(Config.LIST_ANIM_DURATION).withEndAction(new Runnable(){
-					@Override
-					public void run() {
-						listView.setBackground(backupListBG);
-					}
-				});
 				
 				mPositionArray.clear();
 				return false;
@@ -508,7 +522,7 @@ public class GalleryList extends ExpandableListActivity
 				int groupPosition, long id) {
 			// TODO Auto-generated method stub
 			
-			if (collapse.inAnimation || expand.inAnimation){
+			if (collapse.inAnimation>0 || expand.inAnimation>0){
 				return true; /*Ignore if the animatin is ongoing*/
 			}
 			
