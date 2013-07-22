@@ -20,12 +20,14 @@ import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.util.LruCache;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewPropertyAnimator;
 import android.view.ViewTreeObserver;
 import android.view.ViewTreeObserver.OnDrawListener;
 import android.widget.AbsListView;
@@ -120,8 +122,387 @@ public class GalleryList extends ExpandableListActivity
 		public View mView;
 	}
 	
-	private ArrayList<Position> mPositionArray = new ArrayList<Position>();
 	
+	class AnimHandler {
+		protected PositionArray mPositionArray = new PositionArray();
+		protected ExpandableListView listView;
+		protected ViewGroup container;
+		
+		class ViewDetacher implements Runnable{
+			ViewGroup mParent;
+			View mChild;
+			
+			public ViewDetacher(ViewGroup parent, View child){
+				mParent = parent;
+				mChild = child;
+			}
+			
+			public void run(){
+				mParent.removeView(mChild);
+			}
+		}
+		
+		class ViewVisible implements Runnable {
+			private View item;
+			private int value;
+			
+			public ViewVisible(View aItem, int aValue){
+				item = aItem;
+				value = aValue;
+			}
+			
+			public void run(){
+				item.setVisibility(value);
+			}
+		}
+		
+		class PositionArray extends ArrayList<Position> {
+			
+			public Position findById(long Id){
+				for (int i=0; i<this.size(); i++){
+					if (this.get(i).mId == Id){
+						return this.get(i);
+					}
+				}
+				return null;
+			}
+			
+			public void clear(){
+				for (int i=0; i<this.size(); i++){
+					if (this.get(i).mView != null){
+					    this.get(i).mView.setTag(R.id.recyclable, true);
+					}
+				}
+				super.clear();
+			}
+		}
+		
+		public AnimHandler(ExpandableListView aListView, ViewGroup aContainer){
+			listView = aListView;
+			container = aContainer;
+		}
+		
+		protected View findById(long Id){
+			for (int i=0; i<listView.getChildCount(); i++){
+				if (listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i) == Id){
+					return listView.getChildAt(i);
+				}
+			}
+			return null;
+		}
+		
+		protected ViewPropertyAnimator animateTranslationY(View item, boolean inList, float start, float end){
+			if (inList){
+				item.setTranslationY(start);
+				return item.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION);
+			}
+			else {
+				ImageView bmpCache = new ImageView(item.getContext());
+				item.buildDrawingCache();
+				bmpCache.setImageBitmap(item.getDrawingCache());
+				
+				container.addView(bmpCache, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+				bmpCache.setTranslationY(start);
+				return bmpCache.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ViewDetacher(container, bmpCache));
+			}
+		}
+		
+		protected ViewPropertyAnimator animateTranslationY2(View item, boolean inList, float start, float end){
+			if (inList){
+				item.setTranslationY(start);
+				return item.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION);
+			}
+			else {
+				ImageView bmpCache = new ImageView(item.getContext());
+				item.buildDrawingCache();
+				bmpCache.setImageBitmap(item.getDrawingCache());
+				
+				item.setVisibility(View.INVISIBLE);
+				container.addView(bmpCache, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+				bmpCache.setTranslationY(start);
+				
+				final ViewDetacher run1= new ViewDetacher(container, bmpCache);
+				final ViewVisible run2 = new ViewVisible(item, View.VISIBLE);
+				
+				return bmpCache.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new Runnable(){
+
+					@Override
+					public void run() {
+						run1.run();
+						run2.run();
+					}
+					
+				});
+			}
+		}
+		
+		protected void animateMask(float start, float end){
+			/*int height = listView.getBottom() - (int)start + 2;
+			
+			TextView mask = new TextView(container.getContext());
+			mask.setText(" aaa  ");
+			mask.setTextSize(300);
+			mask.setHeight(height);
+			mask.setBackgroundColor(0);
+			mask.setVisibility(View.VISIBLE);
+			
+			container.addView(mask, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+			mask.setTranslationY(start);
+			mask.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ViewDetacher(container, mask));
+			*/
+			
+			shortcut.setVisibility(View.VISIBLE);
+			shortcut.setText(" ");
+			shortcut.setY(start);
+			shortcut.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new Runnable(){
+
+				public void run() {
+					// TODO Auto-generated method stub
+					shortcut.setVisibility(View.INVISIBLE);
+				}
+			});
+		}
+		
+		protected void buildPositionMap(boolean setTranientState){
+			mPositionArray.clear();
+
+			for (int i=0; i<listView.getChildCount(); i++) {
+				long itemId = listView.getItemIdAtPosition(listView.getFirstVisiblePosition() + i);
+				View listItem = listView.getChildAt(i);
+				if (setTranientState){
+					listItem.setTag(R.id.recyclable, false);
+				}
+				mPositionArray.add(new Position(itemId, listItem.getTop(), listItem.getBottom(), listItem));
+			}
+		}
+	}
+	
+	class ExpandAnimHandler extends AnimHandler
+		implements ExpandableListView.OnGroupClickListener{
+
+		private int expandGroupPosition = -1;
+		
+		public ExpandAnimHandler(ExpandableListView aListView, ViewGroup aContainer){
+			super(aListView, aContainer);
+			
+			//listView.setOnGroupClickListener(this);
+		}
+		
+
+		@Override
+		public boolean onGroupClick(ExpandableListView parent, View v,
+				int groupPosition, long id) {		
+			
+			if (parent.isGroupExpanded(groupPosition)){
+				return false;
+			}
+			
+			buildPositionMap(true);
+			
+			
+			for (int i=0; i<mPositionArray.size(); i++){
+				if (mPositionArray.get(i).mView == v){
+					expandGroupPosition = i;
+					break;
+				}
+			}
+			
+			final ViewTreeObserver observer = listView.getViewTreeObserver();
+			
+			observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+				
+				@Override
+				public boolean onPreDraw() {
+					observer.removeOnPreDrawListener(this);
+							
+					int upBound = 0;
+					
+					for (int i=expandGroupPosition; i>=0; i--){
+						Position oldPos = mPositionArray.get(i);
+						View currentView = findById(oldPos.mId);
+						
+						if (currentView != null){
+							animateTranslationY(currentView, true, oldPos.mTop-currentView.getTop(), 0);
+							upBound = currentView.getTop();
+						}
+						else {
+							animateTranslationY(oldPos.mView, false, oldPos.mTop, upBound-oldPos.mBottom+oldPos.mTop);
+							upBound -= (oldPos.mBottom - oldPos.mTop);
+						}
+					}
+					
+					int downBound = listView.getBottom();
+					for (int i=expandGroupPosition+1; i<mPositionArray.size(); i++){
+						Position oldPos = mPositionArray.get(i);
+						View currentView = findById(oldPos.mId);
+						
+						if (currentView != null){
+							animateTranslationY(currentView, true, oldPos.mTop-currentView.getTop(), 0);
+							downBound = currentView.getBottom();
+						}
+						else {
+							animateTranslationY(oldPos.mView, false, oldPos.mTop, downBound);
+							downBound += (oldPos.mBottom - oldPos.mTop );
+						}
+					}
+					
+					if (mPositionArray.get(mPositionArray.size()-1).mBottom < listView.getBottom()){
+						animateMask(mPositionArray.get(mPositionArray.size()-1).mBottom, listView.getChildAt(listView.getChildCount()-1).getBottom());
+					}
+                    
+					
+					mPositionArray.clear();
+					return false;
+				}
+			});
+			
+			return false;
+		}
+		
+	}
+	
+	
+	class CollapseAnimHandler extends AnimHandler
+		implements ExpandableListView.OnGroupClickListener{
+
+		private long collapseGroupID = -1;
+		
+		private Drawable backupListBG = null;
+		private Bitmap cachedBG = null;
+		
+		public CollapseAnimHandler(ExpandableListView aListView, ViewGroup aContainer){
+			super(aListView, aContainer);
+			
+			//listView.setOnGroupClickListener(this);
+		}
+	
+
+	@Override
+		public boolean onGroupClick(ExpandableListView parent, View v,
+			int groupPosition, long id) {		
+		
+		if (!parent.isGroupExpanded(groupPosition)){
+			return false;
+		}
+		
+		buildPositionMap(true);
+		
+		
+		
+		for (int i=0; i<mPositionArray.size(); i++){
+			if (mPositionArray.get(i).mView == v){
+				collapseGroupID = mPositionArray.get(i).mId;
+			}
+		}
+		
+		/*Snapshot the current list*/
+		listView.buildDrawingCache();
+		cachedBG = listView.getDrawingCache();	
+		
+		final ViewTreeObserver observer = listView.getViewTreeObserver();
+		
+		observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+			
+			@Override
+			public boolean onPreDraw() {
+				observer.removeOnPreDrawListener(this);
+				
+				backupListBG = listView.getBackground();
+				listView.setBackground(new BitmapDrawable(cachedBG));
+				
+				int collapseGroupPosition = -1;
+				
+				for (int i=0; i<listView.getChildCount(); i++){
+					if (listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i) == collapseGroupID){
+						collapseGroupPosition = i;
+					}
+				}
+						
+				int upBound = 0;
+				
+				for (int i=collapseGroupPosition; i>=0; i--){
+					Position oldPos = mPositionArray.findById(listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i));
+					View currentView = listView.getChildAt(i);
+					
+					if (oldPos != null){
+						animateTranslationY(currentView, true, oldPos.mTop-currentView.getTop(), 0);
+						upBound = oldPos.mTop;
+					}
+					else {
+						animateTranslationY(currentView, false, upBound-currentView.getHeight(), currentView.getTop());
+						upBound -= currentView.getHeight();
+					}
+				}
+				
+				int downBound = listView.getBottom();
+				if (downBound > mPositionArray.get(mPositionArray.size()-1).mBottom){
+					downBound = mPositionArray.get(mPositionArray.size()-1).mBottom;
+				}
+				for (int i=collapseGroupPosition+1; i<listView.getChildCount(); i++){
+					Position oldPos = mPositionArray.findById(listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i));
+					View currentView = listView.getChildAt(i);
+					
+					if (oldPos != null){
+						//animateTranslationY(currentView, true, oldPos.mTop-currentView.getTop(), 0);
+						/*Make the original one invisible during the animation*/
+						animateTranslationY2(currentView, false, oldPos.mTop, currentView.getTop());
+
+						downBound = oldPos.mBottom;
+					}
+					else {
+						animateTranslationY2(currentView, false, downBound, currentView.getTop());
+						downBound += currentView.getHeight();
+					}
+				}
+				
+				if (listView.getChildAt(listView.getChildCount()-1).getBottom() < listView.getBottom()){
+					animateMask(downBound, listView.getChildAt(listView.getChildCount()-1).getBottom());
+				}
+                
+				listView.getChildAt(0).animate().setDuration(Config.LIST_ANIM_DURATION).withEndAction(new Runnable(){
+					@Override
+					public void run() {
+						listView.setBackground(backupListBG);
+					}
+				});
+				
+				mPositionArray.clear();
+				return false;
+			}
+		});
+		
+		return false;
+	}
+	
+}
+	
+	class GroupClickHandler implements  ExpandableListView.OnGroupClickListener {
+		private ExpandableListView myList;
+		private ExpandAnimHandler expand;
+		private CollapseAnimHandler collapse;
+		
+		GroupClickHandler(ExpandableListView aList, ViewGroup container){
+			myList = aList;
+			expand = new ExpandAnimHandler(aList, container);
+			collapse = new CollapseAnimHandler(aList, container);
+			
+			myList.setOnGroupClickListener(this);
+		}
+
+		@Override
+		public boolean onGroupClick(ExpandableListView parent, View v,
+				int groupPosition, long id) {
+			// TODO Auto-generated method stub
+			
+			if (myList.isGroupExpanded(groupPosition)){
+				return collapse.onGroupClick(parent, v, groupPosition, id);
+			}
+			else {
+				return expand.onGroupClick(parent, v, groupPosition, id);
+			}
+			
+		}
+	}
 	
 	@Override
 	protected void onResume(){
@@ -129,178 +510,10 @@ public class GalleryList extends ExpandableListActivity
 		shortcut = (TextView)findViewById(R.id.collapse_shortcut);
 		shortcut.setVisibility(View.INVISIBLE);
 		
-				
-		/*For expand animation*/
-		getExpandableListView().setOnGroupClickListener(new ExpandableListView.OnGroupClickListener(){
-
-			@Override
-			public boolean onGroupClick(ExpandableListView parent, View view,
-					int groupPosition, long id) {
-				
-				final boolean isCollapse = parent.isGroupExpanded(groupPosition);
-				
-				if (isCollapse){
-					return false; /*Only work for expand now*/
-				}
-				
-				
-				for (int i=0; i<parent.getChildCount(); i++){
-					long itemId = parent.getItemIdAtPosition(parent.getFirstVisiblePosition() + i);
-					View listItem = parent.getChildAt(i);
-					listItem.setTag(R.id.recyclable, false);
-					mPositionArray.add(new Position(itemId, listItem.getTop(), listItem.getBottom(), listItem));
-				}
-
-				final ViewTreeObserver observer = parent.getViewTreeObserver();
-				final ExpandableListView listView = parent;
-				
-				observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener (){
-
-					public ArrayList<View> mInvisibleItems = new ArrayList<View>();
-					
-					@Override
-					public boolean onPreDraw() {
-						observer.removeOnPreDrawListener(this);
-						
-						int firstMatchingItem = -1;
-						int lastMatchingItem = -1;
-						int lastMatchingItemInNewList = -1;
-						int upDist = 0; 
-						int downDist = 0;
-						
-						listView.setWillNotDraw(true);
-						for (int i=0; i<listView.getChildCount(); i++){
-							View listItem = listView.getChildAt(i);
-							long itemId = listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i);
-							
-							for (int j=0; j<mPositionArray.size(); j++){
-								Position oldPos = mPositionArray.get(j);
-								
-								if (itemId == oldPos.mId){
-									
-									if (firstMatchingItem == -1){
-										firstMatchingItem = j;
-									}
-									lastMatchingItem = j;
-									lastMatchingItemInNewList = i;
-									
-									if (i==0){
-										/*The first item is found in old list, then we could anchor anim*/
-										upDist = listItem.getTop() - oldPos.mTop;
-									}
-									
-									if (i==listView.getChildCount()-1){
-										/*The last item is found in the old list, then we could anchor anim*/
-										downDist = listItem.getBottom() - oldPos.mBottom;
-									}
-									
-									listItem.setTranslationY(oldPos.mTop - listItem.getTop());
-									listItem.animate().translationY(0).setDuration(500);
-									
-									break;
-								}
-							}
-						}
-						
-						if (lastMatchingItemInNewList!=-1 && lastMatchingItemInNewList<listView.getChildCount()-1){
-							for (int i=lastMatchingItemInNewList+1; i<listView.getChildCount(); i++){
-								listView.getChildAt(i).setVisibility(View.INVISIBLE);
-								mInvisibleItems.add(listView.getChildAt(i));
-							}
-						}
-						
-						
-						if (upDist == 0) {
-							Position item = mPositionArray.get(firstMatchingItem);
-							upDist = 0 - item.mBottom; 
-						}
-						
-						if (downDist == 0) {
-							Position item = mPositionArray.get(lastMatchingItem);
-							downDist = listView.getBottom() - item.mTop;
-						}
-					
-						ViewGroup pparent = (ViewGroup)listView.getParent();
-						
-						class ViewDetacher implements Runnable{
-							ViewGroup mParent;
-							View mChild;
-							
-							public ViewDetacher(ViewGroup parent, View child){
-								mParent = parent;
-								mChild = child;
-							}
-							
-							public void run(){
-								mParent.removeView(mChild);
-							}
-						}
-						
-						for (int i=0; i<mPositionArray.size(); i++){
-							Position pos = mPositionArray.get(i);
-							ImageView view = new ImageView(getApplicationContext()); 
-							pos.mView.buildDrawingCache();
-							Bitmap bmpCache = pos.mView.getDrawingCache();
-							view.setImageBitmap(bmpCache);
-							
-							view.setTag(R.id.recyclable, true);
-							
-							if (i<firstMatchingItem){
-								pparent.addView(view, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-								view.setTranslationY(pos.mTop);
-								view.animate().translationY(pos.mTop + upDist).setDuration(500).withEndAction(new ViewDetacher(pparent, view));
-							}
-							else if (i>lastMatchingItem){
-								pparent.addView(view, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-								view.setTranslationY(pos.mTop);
-								view.animate().translationY(pos.mTop + downDist).setDuration(500).withEndAction(new ViewDetacher(pparent, view));				
-							}
-							
-							final ViewTreeObserver parentObserver =  pparent.getViewTreeObserver();
-							parentObserver.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-								
-								@Override
-								public boolean onPreDraw() {
-									parentObserver.removeOnPreDrawListener(this);
-									
-									while (mInvisibleItems.size() > 0){
-										mInvisibleItems.get(0).setVisibility(View.VISIBLE);
-										mInvisibleItems.remove(0);
-									}
-									return false;
-								}
-							});
-						}
-						
-						int oldLastBottom = mPositionArray.get(mPositionArray.size()-1).mBottom;
-						
-						if (oldLastBottom < listView.getBottom()){
-							
-							shortcut.setText(" ");
-							shortcut.setTranslationY(oldLastBottom);
-							shortcut.setVisibility(View.VISIBLE);
-							shortcut.animate().translationY(downDist+oldLastBottom).setDuration(500).withEndAction(new Runnable(){
-
-								@Override
-								public void run() {
-									shortcut.setVisibility(View.INVISIBLE);									
-								}
-								
-							});
-						}
-
-						mPositionArray.clear();
-						return false; /*Bypass the drawing !!! In case we re-layout the container*/
-					}
-
-					
-				});
-				return false;
-			}
-			
-		});
+		new GroupClickHandler(getExpandableListView(), (ViewGroup)findViewById(R.id.root_container));
 		
-
+		//new ExpandAnimHandler(getExpandableListView(), (ViewGroup)findViewById(R.id.root_container));
+		//new CollapseAnimHandler(getExpandableListView(), (ViewGroup)findViewById(R.id.root_container));
 	}
 
 	@Override
