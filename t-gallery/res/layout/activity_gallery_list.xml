@@ -14,15 +14,7 @@
         android:childDivider="#000000"
         android:dividerHeight="0sp"
         android:alpha="1.0" 
+        android:indicatorLeft="-150sp"
         />
-    
-    <TextView
-        android:id="@+id/collapse_shortcut"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:background="#000000"
-        android:textSize="350sp"
-        android:text="@string/collapse" />
     
 </AbsoluteLayout>

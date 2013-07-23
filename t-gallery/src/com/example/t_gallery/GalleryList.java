@@ -25,6 +25,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.view.ViewPropertyAnimator;
 import android.view.ViewTreeObserver;
 import android.widget.AbsListView;
@@ -37,8 +38,7 @@ import android.widget.TextView;
 
 
 
-public class GalleryList extends ExpandableListActivity 
-	implements OnScrollListener{
+public class GalleryList extends ExpandableListActivity {
 	
 	
 	static public class Config{
@@ -47,8 +47,10 @@ public class GalleryList extends ExpandableListActivity
 		static public final int MAX_PICTURE_IN_ALBUM = 10000;
 		
 		static public final int THUMBNAILS_PER_LINE = 4;
-		static public final int THUMBNAIL_WIDTH = 270;
-		static public final int THUMBNAIL_HEIGHT = 270;
+		static public final int THUMBNAIL_WIDTH = 266;
+		static public final int THUMBNAIL_HEIGHT = 266;
+		static public final int THUMBNAIL_BOUND_WIDTH = 270;
+		static public final int THUMBNAIL_BOUND_HEIGHT = 270;
 		
 		/*RAM cache*/
 		static public final int RAM_CACHE_SIZE_KB = (int)(Runtime.getRuntime().maxMemory()/4096);
@@ -61,7 +63,10 @@ public class GalleryList extends ExpandableListActivity
 		static public final String IMAGE_WHERE_CLAUSE = Media.BUCKET_ID + " = ?";
 		
 		/*UI Effect*/
-		static public final int LIST_ANIM_DURATION = 300; /*count in ms*/
+		static public final int LIST_ANIM_DURATION = 400; /*count in ms*/
+		
+		static public final int COLLAPSE_SHORTCUT_ANIM_DURATION = 500;
+		static public final int COLLAPSE_SHORTCUT_STAY_DURATION = 2000;
 	}
 	
 	private void fetchGalleryList(){
@@ -103,8 +108,6 @@ public class GalleryList extends ExpandableListActivity
 		setListAdapter(new GalleryListAdapter());
 		//getExpandableListView().setOnScrollListener(this);
 	}
-	
-	private TextView shortcut;
 	
 	class Position {
 		Position(long id, int top, int bottom, View view){
@@ -269,25 +272,21 @@ public class GalleryList extends ExpandableListActivity
 		}
 		
 		protected void animateMask(float start, float end){
-			/*int height = listView.getBottom() - (int)start + 2;
+			int height1 = listView.getBottom() - (int)start + 2;
+			int height2 = listView.getBottom() - (int)end + 2;
 			
-			TextView mask = new TextView(container.getContext());
-			mask.setText(" aaa  ");
-			mask.setTextSize(300);
-			mask.setHeight(height);
-			mask.setBackgroundColor(0);
-			mask.setVisibility(View.VISIBLE);
+			int height = height1>height2?height1:height2;
 			
-			container.addView(mask, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-			mask.setTranslationY(start);
-			mask.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ViewDetacher(container, mask));
-			*/
 			inAnimation++;
 			
-			shortcut.setVisibility(View.VISIBLE);
-			shortcut.setText(" ");
-			shortcut.setY(start);
-			shortcut.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ViewVisible(shortcut, View.INVISIBLE));
+			View mask = new View(container.getContext());
+			mask.setBackgroundColor(0xFF000000);
+			mask.setVisibility(View.VISIBLE);
+			
+			container.addView(mask, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height));
+			mask.setTranslationY(start);
+			mask.animate().translationY(end).setDuration(Config.LIST_ANIM_DURATION).withEndAction(new ViewDetacher(container, mask));
+			return;
 		}
 		
 		protected void buildPositionMap(boolean setTranientState){
@@ -319,10 +318,6 @@ public class GalleryList extends ExpandableListActivity
 		@Override
 		public boolean onGroupClick(ExpandableListView parent, View v,
 				int groupPosition, long id) {		
-			
-			if (parent.isGroupExpanded(groupPosition)){
-				return false;
-			}
 			
 			buildPositionMap(true);
 			
@@ -406,6 +401,9 @@ public class GalleryList extends ExpandableListActivity
 					if (backupListBG != null){
 						listView.setBackground(backupListBG);
 					}
+					else {
+						listView.setBackgroundColor(0xFF000000);
+					}
 				}
 			};
 			//listView.setOnGroupClickListener(this);
@@ -415,14 +413,9 @@ public class GalleryList extends ExpandableListActivity
 	@Override
 		public boolean onGroupClick(ExpandableListView parent, View v,
 			int groupPosition, long id) {		
-		
-		if (!parent.isGroupExpanded(groupPosition)){
-			return false;
-		}
+
 		
 		buildPositionMap(true);
-		
-		
 		
 		for (int i=0; i<mPositionArray.size(); i++){
 			if (mPositionArray.get(i).mView == v){
@@ -539,10 +532,9 @@ public class GalleryList extends ExpandableListActivity
 	@Override
 	protected void onResume(){
 		super.onResume();
-		shortcut = (TextView)findViewById(R.id.collapse_shortcut);
-		shortcut.setVisibility(View.INVISIBLE);
 		
 		new GroupClickHandler(getExpandableListView(), (ViewGroup)findViewById(R.id.root_container));
+		new CollapseButton(getExpandableListView());
 	}
 
 	@Override
@@ -565,115 +557,7 @@ public class GalleryList extends ExpandableListActivity
 	private Cursor mGalleryList;
 	private Cursor mImageLists[];
 	private LruCache<Long, Bitmap> mRamCache;
-	
-	private ObjectAnimator ongoingAnim;
-	private boolean shortcutDisp = true;
-	
-	private void ShowShortcut(){
 		
-		if (shortcutDisp){
-			return;
-		}
-		
-		int height = shortcut.getHeight();
-		ongoingAnim.cancel();
-		
-		ObjectAnimator anim = ObjectAnimator.ofFloat(shortcut, "Y", 0).setDuration(500);
-		anim.start();
-		ongoingAnim = anim;
-		shortcutDisp = true;
-		
-		
-	}
-	
-	private void HideShortcut(boolean immediate){
-		
-		if(!shortcutDisp){
-			return;
-		}
-		
-		int height = shortcut.getHeight();
-		
-		if (ongoingAnim != null)
-		ongoingAnim.cancel();
-		
-		if (immediate){
-			shortcut.setY(0 - height);
-		}
-		else{
-			ObjectAnimator anim = ObjectAnimator.ofFloat(shortcut, "Y", 0-height).setDuration(500);
-			anim.start();
-			ongoingAnim = anim;
-		}
-		shortcutDisp = false;
-	}
-	
-	private int scrollState = AbsListView.OnScrollListener.SCROLL_STATE_IDLE;
-
-	private int prevFirstItem = -1;
-	private int prevVisibleItemCount = -1;
-	@Override
-	public void onScroll(AbsListView view, int firstVisibleItem,
-			int visibleItemCount, int totalItemCount) {
-
-		if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL){
-			if (prevFirstItem == -1){
-				prevFirstItem = firstVisibleItem;
-				prevVisibleItemCount = visibleItemCount;
-			}
-			else {
-				if (prevFirstItem >  firstVisibleItem){
-					ShowShortcut();
-				}
-				else if (prevFirstItem < firstVisibleItem){
-					HideShortcut(false);
-				}
-			}
-		}
-		else if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_FLING){
-			prevFirstItem = -1;
-			ExpandableListView list = getExpandableListView();
-			long index = list.getExpandableListPosition(firstVisibleItem);
-			int groupIndex = list.getPackedPositionGroup(index);
-			int childIndex = list.getPackedPositionChild(index);
-			
-			if (childIndex == -1){
-				HideShortcut(false);
-			}
-		}
-	}
-
-	private Timer timerToHide;
-	@Override
-	public void onScrollStateChanged(AbsListView view, int scrollState) {
-		
-		if (this.scrollState == AbsListView.OnScrollListener.SCROLL_STATE_FLING 
-				&& scrollState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE){
-			if (shortcutDisp){
-				timerToHide = new Timer();
-				timerToHide.schedule(new TimerTask(){
-					
-					Handler msgHandler = new Handler(){
-						public void handleMessage(Message msg){
-							if (shortcutDisp){
-								HideShortcut(false);
-							}
-						}
-					};
-
-					@Override
-					public void run() {
-						msgHandler.obtainMessage().sendToTarget();
-					}
-					
-				}, 1500);
-			}
-		}
-		
-		this.scrollState = scrollState;
-	}
-
-	
 	class GalleryListAdapter extends BaseExpandableListAdapter{
 		
 		class BitmapWorkerTask extends AsyncTask<Long, Void, Bitmap>{
@@ -773,9 +657,10 @@ public class GalleryList extends ExpandableListActivity
 	            
 	            for (int i=0; i<Config.THUMBNAILS_PER_LINE; i++){
 	            	holder.icons[i] = new ImageView(getApplicationContext());
+	            	holder.icons[i].setBackgroundColor(0xFF000000);
 	            	holder.icons[i].setAdjustViewBounds(true);
-					holder.icons[i].setScaleType(ImageView.ScaleType.CENTER_CROP);	
-	    			line.addView(holder.icons[i], new LinearLayout.LayoutParams(Config.THUMBNAIL_WIDTH,Config.THUMBNAIL_HEIGHT));
+					holder.icons[i].setScaleType(ImageView.ScaleType.CENTER);	
+	    			line.addView(holder.icons[i], new LinearLayout.LayoutParams(Config.THUMBNAIL_BOUND_WIDTH,Config.THUMBNAIL_BOUND_HEIGHT));
 	            }
 				
 				line.setTag(R.id.data_holder, holder);
@@ -883,4 +768,181 @@ public class GalleryList extends ExpandableListActivity
 			return (Boolean)item.getTag(R.id.recyclable);
 		}
 	}	 
+
+	class CollapseButton 
+		implements AbsListView.OnScrollListener{
+		
+		private ExpandableListView listView;
+		private TextView view = null;
+		private boolean isDisplay = false;
+		private boolean inAnimation = false;
+		
+		
+		private Timer timerToHide = new Timer();
+		private TimerTask hideTask = null;
+		
+		private int groupIndex;
+		
+		private int lastFirstVisibleItem = -1;
+
+		@Override
+		public void onScroll(AbsListView view, int firstVisibleItem,
+				int visibleItemCount, int totalItemCount) {
+			// TODO Auto-generated method stub
+			long firstIndex = listView.getExpandableListPosition(firstVisibleItem);
+			long lastIndex = listView.getExpandableListPosition(firstVisibleItem+visibleItemCount-1);
+			
+			int firstGroupIndex = listView.getPackedPositionGroup(firstIndex);
+			int lastGroupIndex = listView.getPackedPositionGroup(lastIndex);
+			int firstChildIndex = listView.getPackedPositionChild(firstIndex);
+			
+			if ( !inAnimation && !isDisplay &&
+					lastFirstVisibleItem > firstVisibleItem && 
+					firstGroupIndex == lastGroupIndex &&
+					-1 != firstChildIndex) {
+				
+				groupIndex = listView.getPackedPositionGroup(firstIndex);
+				if (hideTask != null){
+					hideTask.cancel();
+					hideTask = null;
+				}
+				display(false);
+			}
+			else if (lastFirstVisibleItem < firstVisibleItem && isDisplay && !inAnimation){
+				if (hideTask != null){
+					hideTask.cancel();
+					hideTask = null;
+				}
+				hide(false);
+			}
+			else if (firstGroupIndex != lastGroupIndex || firstChildIndex == -1){
+				if (hideTask != null){
+					hideTask.cancel();
+					hideTask = null;
+				}
+				hide(true);
+			}
+			
+			lastFirstVisibleItem = firstVisibleItem;
+		}
+
+		@Override
+		public void onScrollStateChanged(AbsListView view, int scrollState) {
+			// TODO Auto-generated method stub
+		    if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE && isDisplay == true){
+		    	if (hideTask != null){
+		    		return;
+		    	}
+		    	
+		    	hideTask = new TimerTask(){
+
+					Handler msgHandler = new Handler(){
+						public void handleMessage(Message msg){
+							if (isDisplay){
+								hide(false);
+							}
+						}
+					};
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						msgHandler.obtainMessage().sendToTarget();
+					}
+		    		
+		    	};
+		    	
+		    	timerToHide.schedule(hideTask, Config.COLLAPSE_SHORTCUT_STAY_DURATION);
+		    }
+		}
+		
+		public CollapseButton(ExpandableListView aList){
+			listView = aList;
+			listView.setOnScrollListener(this);
+		}
+		
+		private void buildDispView(){
+			ViewGroup container = (ViewGroup)listView.getParent();
+			
+			if (view != null){
+				container.removeView(view);
+				view = null;
+			}
+			
+			LayoutInflater inflater = (LayoutInflater)getApplicationContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+			view = (TextView)inflater.inflate(R.layout.collaps_overlay, null);
+			
+			container.addView(view, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+			
+			mGalleryList.moveToPosition(groupIndex);
+			int count = mImageLists[groupIndex].getCount();
+			view.setText(mGalleryList.getString(mGalleryList.getColumnIndex(Media.BUCKET_DISPLAY_NAME))+" ("+count+")");
+
+			view.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					listView.collapseGroup(groupIndex);
+					hide(true);
+				}
+			});
+		}
+		
+		private void display(boolean immediate){
+			if (isDisplay){
+				return;
+			}
+			isDisplay = true;
+			
+			buildDispView();
+			
+			if (!immediate){
+				inAnimation = true;
+				view.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+				int height = view.getMeasuredHeight();
+				view.setTranslationY(0 - height);
+				view.animate().translationY(0).setDuration(Config.COLLAPSE_SHORTCUT_ANIM_DURATION).withEndAction(new Runnable(){
+
+					@Override
+					public void run() {
+						// TODO Auto-generated method stub
+						inAnimation = false;
+					}
+					
+				});
+			}
+		}
+		
+		private void hide(boolean immediate){		
+			if (!isDisplay) {
+				return;
+			}
+			
+			if (!immediate){
+				inAnimation = true;
+				view.animate().translationY(0-view.getHeight()).setDuration(Config.COLLAPSE_SHORTCUT_ANIM_DURATION).withEndAction(new Runnable(){
+					@Override
+					public void run() {
+						ViewGroup container = (ViewGroup)view.getParent();
+						container.removeView(view);
+						view = null;
+						
+						isDisplay = false;
+						inAnimation = false;
+					}
+				});
+			}
+			else{
+				
+				if (inAnimation){
+					view.animate().cancel();
+				}
+				ViewGroup container = (ViewGroup)view.getParent();
+				container.removeView(view);
+				
+				view = null;
+				inAnimation = false;
+				isDisplay = false;
+			}
+		}
+		
+	}
 }

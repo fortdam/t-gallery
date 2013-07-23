@@ -4,8 +4,9 @@
     android:layout_height="wrap_content"
     android:text="@string/collapse"
     android:id="@+id/collapse"
-    android:gravity="top|center_horizontal"
     android:textSize="30sp"
-    android:background="#FFFFFF">    
+    android:background="#000000"
+    android:textColor="#ffffff"
+    android:alpha="0.5">    
 
 </TextView>
