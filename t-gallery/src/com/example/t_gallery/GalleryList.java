@@ -369,7 +369,9 @@ public class GalleryList extends ExpandableListActivity {
 					}
 					
 					if (mPositionArray.get(mPositionArray.size()-1).mBottom < listView.getBottom()){
-						animateMask(mPositionArray.get(mPositionArray.size()-1).mBottom, listView.getChildAt(listView.getChildCount()-1).getBottom());
+						int endBottom = listView.getChildAt(listView.getChildCount()-1).getBottom();
+						endBottom = endBottom>downBound?endBottom:downBound;
+						animateMask(mPositionArray.get(mPositionArray.size()-1).mBottom, endBottom);
 					}
                     
 					
@@ -387,7 +389,7 @@ public class GalleryList extends ExpandableListActivity {
 	class CollapseAnimHandler extends AnimHandler
 		implements ExpandableListView.OnGroupClickListener{
 
-		private long collapseGroupID = -1;
+		private int collapseGroupIndex = -1;
 		
 		private Drawable backupListBG = null;
 		private Bitmap cachedBG = null;
@@ -399,7 +401,8 @@ public class GalleryList extends ExpandableListActivity {
 				@Override
 				public void end() {
 					if (backupListBG != null){
-						listView.setBackground(backupListBG);
+						//listView.setBackground(backupListBG);
+						listView.setBackgroundColor(0xFF000000);
 					}
 					else {
 						listView.setBackgroundColor(0xFF000000);
@@ -417,11 +420,7 @@ public class GalleryList extends ExpandableListActivity {
 		
 		buildPositionMap(true);
 		
-		for (int i=0; i<mPositionArray.size(); i++){
-			if (mPositionArray.get(i).mView == v){
-				collapseGroupID = mPositionArray.get(i).mId;
-			}
-		}
+		collapseGroupIndex = groupPosition;
 		
 		/*Snapshot the current list*/
 		listView.buildDrawingCache();
@@ -441,8 +440,12 @@ public class GalleryList extends ExpandableListActivity {
 				int collapseGroupPosition = -1;
 				
 				for (int i=0; i<listView.getChildCount(); i++){
-					if (listView.getItemIdAtPosition(listView.getFirstVisiblePosition()+i) == collapseGroupID){
+					long packedPosition = listView.getExpandableListPosition(listView.getFirstVisiblePosition()+i);
+		
+					if (listView.PACKED_POSITION_TYPE_GROUP == listView.getPackedPositionType(packedPosition) && 
+							collapseGroupIndex == listView.getPackedPositionGroup(packedPosition)){
 						collapseGroupPosition = i;
+						break;
 					}
 				}
 						
@@ -457,13 +460,13 @@ public class GalleryList extends ExpandableListActivity {
 						upBound = oldPos.mTop;
 					}
 					else {
-						animateTranslationY(currentView, false, upBound-currentView.getHeight(), currentView.getTop());
+						animateTranslationY(currentView, true, upBound-currentView.getHeight() - currentView.getTop(), 0);
 						upBound -= currentView.getHeight();
 					}
 				}
 				
 				int downBound = listView.getBottom();
-				if (downBound > mPositionArray.get(mPositionArray.size()-1).mBottom){
+				if (downBound < mPositionArray.get(mPositionArray.size()-1).mBottom){
 					downBound = mPositionArray.get(mPositionArray.size()-1).mBottom;
 				}
 				for (int i=collapseGroupPosition+1; i<listView.getChildCount(); i++){
@@ -880,8 +883,11 @@ public class GalleryList extends ExpandableListActivity {
 			view.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View v) {
-					listView.collapseGroup(groupIndex);
 					hide(true);
+					
+					listView.collapseGroup(groupIndex);
+					CollapseAnimHandler anim = new CollapseAnimHandler(listView, (ViewGroup)findViewById(R.id.root_container));
+					anim.onGroupClick(listView, null, groupIndex, 0);
 				}
 			});
 		}
