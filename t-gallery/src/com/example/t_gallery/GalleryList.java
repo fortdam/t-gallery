@@ -47,10 +47,11 @@ public class GalleryList extends ExpandableListActivity {
 		static public final int MAX_PICTURE_IN_ALBUM = 10000;
 		
 		static public final int THUMBNAILS_PER_LINE = 4;
-		static public final int THUMBNAIL_WIDTH = 266;
-		static public final int THUMBNAIL_HEIGHT = 266;
-		static public final int THUMBNAIL_BOUND_WIDTH = 270;
-		static public final int THUMBNAIL_BOUND_HEIGHT = 270;
+		static public final int THUMBNAIL_WIDTH = 132;
+		static public final int THUMBNAIL_HEIGHT = 132;
+		static public final int THUMBNAIL_BOUND_WIDTH = 264;
+		static public final int THUMBNAIL_BOUND_HEIGHT = 264;
+		static public final int THUMBNAIL_PADDING = 3;
 		
 		/*RAM cache*/
 		static public final int RAM_CACHE_SIZE_KB = (int)(Runtime.getRuntime().maxMemory()/4096);
@@ -536,6 +537,8 @@ public class GalleryList extends ExpandableListActivity {
 	protected void onResume(){
 		super.onResume();
 		
+		getExpandableListView().setLayerType(View.LAYER_TYPE_HARDWARE, null);
+		
 		new GroupClickHandler(getExpandableListView(), (ViewGroup)findViewById(R.id.root_container));
 		new CollapseButton(getExpandableListView());
 	}
@@ -662,7 +665,9 @@ public class GalleryList extends ExpandableListActivity {
 	            	holder.icons[i] = new ImageView(getApplicationContext());
 	            	holder.icons[i].setBackgroundColor(0xFF000000);
 	            	holder.icons[i].setAdjustViewBounds(true);
-					holder.icons[i].setScaleType(ImageView.ScaleType.CENTER);	
+					holder.icons[i].setScaleType(ImageView.ScaleType.CENTER_CROP);
+					holder.icons[i].setPadding(Config.THUMBNAIL_PADDING, Config.THUMBNAIL_PADDING, Config.THUMBNAIL_PADDING, Config.THUMBNAIL_PADDING);
+					
 	    			line.addView(holder.icons[i], new LinearLayout.LayoutParams(Config.THUMBNAIL_BOUND_WIDTH,Config.THUMBNAIL_BOUND_HEIGHT));
 	            }
 				
@@ -885,9 +890,9 @@ public class GalleryList extends ExpandableListActivity {
 				public void onClick(View v) {
 					hide(true);
 					
-					listView.collapseGroup(groupIndex);
 					CollapseAnimHandler anim = new CollapseAnimHandler(listView, (ViewGroup)findViewById(R.id.root_container));
 					anim.onGroupClick(listView, null, groupIndex, 0);
+					listView.collapseGroup(groupIndex);
 				}
 			});
 		}
