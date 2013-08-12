@@ -20,6 +20,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.util.Log;
 import android.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -51,7 +52,7 @@ public class GalleryList extends ExpandableListActivity {
 		static public final int THUMBNAIL_HEIGHT = 132;
 		static public final int THUMBNAIL_BOUND_WIDTH = 264;
 		static public final int THUMBNAIL_BOUND_HEIGHT = 264;
-		static public final int THUMBNAIL_PADDING = 3;
+		static public final int THUMBNAIL_PADDING = 6;
 		
 		/*RAM cache*/
 		static public final int RAM_CACHE_SIZE_KB = (int)(Runtime.getRuntime().maxMemory()/4096);
@@ -60,7 +61,7 @@ public class GalleryList extends ExpandableListActivity {
 		static public final Uri MEDIA_URI = Media.EXTERNAL_CONTENT_URI;
 		static public final String ALBUM_PROJECTION[] = {Media.BUCKET_ID, Media.BUCKET_DISPLAY_NAME};
 		static public final String ALBUM_WHERE_CLAUSE = "1) GROUP BY (1"; /*This is a trick to use GROUP BY */
-		static public final String IMAGE_PROJECTION[] = {Media._ID};
+		static public final String IMAGE_PROJECTION[] = {Media._ID, Media.WIDTH, Media.HEIGHT};
 		static public final String IMAGE_WHERE_CLAUSE = Media.BUCKET_ID + " = ?";
 		
 		/*UI Effect*/
@@ -80,6 +81,8 @@ public class GalleryList extends ExpandableListActivity {
 	
 		mImageLists = new Cursor[mGalleryList.getCount()];
 		
+		mGalleryLayouts = new ArrayList<GalleryLayout>();
+		
 		for (int i=0; i<mGalleryList.getCount(); i++){
 			mGalleryList.moveToPosition(i);
 			String galleryId = mGalleryList.getString(mGalleryList.getColumnIndex(Media.BUCKET_ID));
@@ -89,8 +92,25 @@ public class GalleryList extends ExpandableListActivity {
 					Config.IMAGE_WHERE_CLAUSE, 
 					new String[]{mGalleryList.getString(mGalleryList.getColumnIndex(Media.BUCKET_ID))}, 
 					null);
+			
+			
+			GalleryLayout galleryLayout = new GalleryLayout();
+			
+			mImageLists[i].moveToFirst();
+			
+			while (false == mImageLists[i].isAfterLast()){
+				long id = mImageLists[i].getLong(mImageLists[i].getColumnIndex(Media._ID));
+				int width = mImageLists[i].getInt(mImageLists[i].getColumnIndex(Media.WIDTH));
+				int height = mImageLists[i].getInt(mImageLists[i].getColumnIndex(Media.HEIGHT));
+				
+				galleryLayout.addImage(id, width, height);
+
+				mImageLists[i].moveToNext();
+			}
+			mGalleryLayouts.add(galleryLayout);
 		}
 	}
+	
 
 	
 	@Override
@@ -105,9 +125,141 @@ public class GalleryList extends ExpandableListActivity {
 				return (bmp.getByteCount()/1024);
 			}
 		};
-	
+
 		setListAdapter(new GalleryListAdapter());
 		//getExpandableListView().setOnScrollListener(this);
+	}
+	
+	
+	class ImageCell {
+		ImageCell(long aId, int aWidth, int aHeight){
+			id = aId;
+		    inWidth = aWidth;
+		    inHeight = aHeight;
+		}
+		
+		public long id = 0;
+		public int inWidth = 0;
+		public int inHeight = 0;
+		public int outWidth = 0;
+		public int outHeight = 0;
+	}
+	
+	class ImageLineGroup {
+		private static final int TOTAL_WIDTH = 1080;
+		private static final int MAX_HEIGHT = 540;
+		private static final int MIN_HEIGHT = 180;
+
+		
+		ImageLineGroup(){
+			imageList = new ArrayList<ImageCell>();
+			decodeOptions = new BitmapFactory.Options();
+			decodeOptions.inJustDecodeBounds = true;
+		}
+		
+
+		public void addImage(long id, int width, int height){
+			ImageCell image = new ImageCell(id, width, height);
+			imageList.add(image);
+		}
+		
+		private void layout(){
+			int maxContentWidth = TOTAL_WIDTH - imageList.size()*Config.THUMBNAIL_PADDING*2;
+			int contentWidth = 0;
+			
+			/*First Round, to resize all picture as high as MAX_HEIGHT*/
+			for (int i=0; i<imageList.size(); i++){
+				ImageCell image = imageList.get(i);
+				image.outHeight = MAX_HEIGHT;
+				image.outWidth = (image.inWidth*image.outHeight)/image.inHeight;
+				
+				contentWidth += image.outWidth;
+			}
+			
+			if (contentWidth > maxContentWidth){
+				for (int i=0; i<imageList.size(); i++){
+					ImageCell image = imageList.get(i);
+					
+					image.outHeight = (image.outHeight*maxContentWidth)/contentWidth;
+					image.outWidth = (image.outWidth*maxContentWidth)/contentWidth;
+					
+					height = image.outHeight + Config.THUMBNAIL_PADDING*2;
+				}
+			}
+			
+		}
+		
+		public boolean properForMoreImage(){
+			if (imageList.size() >= 4 || height<=MIN_HEIGHT){
+				return false;
+			}
+			return true;
+		}
+		
+		public boolean needMoreImage(){
+			if (imageList.isEmpty()){
+				return true;
+			}
+			else if (imageList.size() >= 4){
+				layout();
+				return false; //Consider as "full" if 4 pictures in one line...
+			}
+			
+			layout();
+			
+			int totalWidth = 0;
+			
+			for (int i=0; i<imageList.size(); i++){
+				ImageCell image = imageList.get(i);			
+				totalWidth += image.outWidth + Config.THUMBNAIL_PADDING*2;
+			}
+			
+			if (totalWidth < (TOTAL_WIDTH-30)){
+				return true;
+			}
+			else {
+				return false;
+			}
+
+		}
+		
+		
+		public int height;
+		public ArrayList<ImageCell> imageList;
+		public BitmapFactory.Options decodeOptions = null;
+	}
+	
+	class GalleryLayout {
+		GalleryLayout(){
+			lines = new ArrayList<ImageLineGroup>();
+		}
+		
+		public void addLine(ImageLineGroup aLine){
+			lines.add(aLine);
+		}
+		
+		public void addImage(long id, int width, int height){
+			ImageLineGroup line = null;
+			
+			if (lines.size()>0) {
+				line = lines.get(lines.size()-1);
+			}
+			
+			if (line != null && true == line.needMoreImage()){
+				line.addImage(id, width, height);
+			}
+			else {
+				line = new ImageLineGroup();
+				line.addImage(id, width, height);
+				addLine(line);
+			}
+		}
+		
+		public int getLineNum(){
+			return lines.size();
+		}
+		
+		public ArrayList<ImageLineGroup> lines = null;
 	}
 	
 	class Position {
@@ -550,12 +702,12 @@ public class GalleryList extends ExpandableListActivity {
 		return true;
 	}
 		
-	private synchronized Bitmap getBitmapFromRamCace(long key){
+	private synchronized Bitmap getBitmapFromRamCache(long key){
 		return mRamCache.get(key);	
 	}
 	
 	private synchronized void addBitmapToRamCache(long key, Bitmap bmp){
-		if (null == getBitmapFromRamCace(key)){
+		if (null == getBitmapFromRamCache(key)){
 			mRamCache.put(key, bmp);
 		}
 	}
@@ -563,6 +715,8 @@ public class GalleryList extends ExpandableListActivity {
 	private Cursor mGalleryList;
 	private Cursor mImageLists[];
 	private LruCache<Long, Bitmap> mRamCache;
+	
+	private ArrayList<GalleryLayout> mGalleryLayouts;
 		
 	class GalleryListAdapter extends BaseExpandableListAdapter{
 		
@@ -582,8 +736,12 @@ public class GalleryList extends ExpandableListActivity {
 			    id = params[0];
 				
 				Bitmap thumb = Thumbnails.getThumbnail(getContentResolver(), id, Thumbnails.MINI_KIND, options);
-				int height = thumb.getHeight();
+				
+				return thumb;
+				/*int height = thumb.getHeight();
 				int width = thumb.getWidth();
+				
+				Log.e("t-gallery", "tangzhiming: the thumbnail width="+width+" height="+height);
 				
 				if (height > width){
 					thumb = Bitmap.createBitmap(thumb, 0, (height-width)/2, width, width);
@@ -592,7 +750,7 @@ public class GalleryList extends ExpandableListActivity {
 					thumb = Bitmap.createBitmap(thumb, (width-height)/2, 0, height, height);
 				}
 				
-		        return Bitmap.createScaledBitmap(thumb,Config.THUMBNAIL_WIDTH,Config.THUMBNAIL_HEIGHT,false);
+		        return Bitmap.createScaledBitmap(thumb,Config.THUMBNAIL_WIDTH,Config.THUMBNAIL_HEIGHT,false);*/
 		
 			}
 			
@@ -603,6 +761,7 @@ public class GalleryList extends ExpandableListActivity {
 					
 					if (iconView != null){
 						addBitmapToRamCache(id, bitmap);
+						iconView.setScaleType(ImageView.ScaleType.CENTER_CROP);
 						iconView.setImageBitmap(bitmap);
 					}
 				}
@@ -686,29 +845,36 @@ public class GalleryList extends ExpandableListActivity {
 				}
 			}
 			
+			ImageLineGroup currentLine = mGalleryLayouts.get(groupPosition).lines.get(childPosition);
+			
+			line.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, currentLine.height));
+			
 			/*Fill in the content*/
 	        for (int i=0; i<Config.THUMBNAILS_PER_LINE; i++){
 	        	
-	        	Cursor imageList = mImageLists[groupPosition];
 	        	
-	        	if (imageList.getCount() <= (childPosition*Config.THUMBNAILS_PER_LINE+i)){
-	        		holder.icons[i].setImageResource(R.drawable.black);
+	        	if (i >= currentLine.imageList.size()){
+	        		holder.icons[i].setVisibility(View.GONE);
 	        	}
 	        	else {
-	        		imageList.moveToPosition(childPosition*Config.THUMBNAILS_PER_LINE+i);
-	        		long id = imageList.getLong (imageList.getColumnIndex(Media._ID));
-	        		Bitmap bmp = getBitmapFromRamCace(id);
+	        		Bitmap bmp = getBitmapFromRamCache(currentLine.imageList.get(i).id);
+	        		
+	        		holder.icons[i].setLayoutParams(new LinearLayout.LayoutParams(currentLine.imageList.get(i).outWidth+2*Config.THUMBNAIL_PADDING, currentLine.imageList.get(i).outHeight+2*Config.THUMBNAIL_PADDING));
+	        		holder.icons[i].setVisibility(View.VISIBLE);
 	        		
 	        		if (bmp != null){
 	        			holder.icons[i].setImageBitmap(bmp);
 	        		}
 	        		else {
 	        			BitmapWorkerTask task = new BitmapWorkerTask(holder.icons[i]);
-					    task.execute(id);
+					    task.execute(currentLine.imageList.get(i).id);
 					    holder.task[i] = task;
-					    holder.icons[i].setImageResource(R.drawable.empty_photo);
+					    holder.icons[i].setScaleType(ImageView.ScaleType.FIT_XY);
+					    holder.icons[i].setImageResource(R.drawable.grey);	
 	        		}
-	        	}	
+
+	        	}
+	        	
 			}
 
 			return line;
@@ -716,7 +882,8 @@ public class GalleryList extends ExpandableListActivity {
 
 		@Override
 		public int getChildrenCount(int groupPosition) {
-			return (mImageLists[groupPosition].getCount() + Config.THUMBNAILS_PER_LINE - 1)/Config.THUMBNAILS_PER_LINE;
+			return mGalleryLayouts.get(groupPosition).getLineNum();
+			//return (mImageLists[groupPosition].getCount() + Config.THUMBNAILS_PER_LINE - 1)/Config.THUMBNAILS_PER_LINE;
 		}
 
 		@Override
