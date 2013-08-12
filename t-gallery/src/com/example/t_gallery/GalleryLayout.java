@@ -1,6 +1,7 @@
 package com.example.t_gallery;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 import android.graphics.BitmapFactory;
 
@@ -78,12 +79,17 @@ class ImageLineGroup {
 }
 
 class ImageSingleLineGroup extends ImageLineGroup{
-	private static final int TOTAL_WIDTH = 1080;
+	private int totalWidth = 1080;
 	private static final int MAX_HEIGHT = 540;
 	private static final int MIN_HEIGHT = 180;
 	
+	ImageSingleLineGroup(int containerWidth){
+		totalWidth = containerWidth;
+	}
+	
+	
 	private void layout(){
-		int maxContentWidth = TOTAL_WIDTH - imageList.size()*Config.THUMBNAIL_PADDING*2;
+		int maxContentWidth = totalWidth;
 		int contentWidth = 0;
 		
 		/*First Round, to resize all picture as high as MAX_HEIGHT*/
@@ -102,7 +108,7 @@ class ImageSingleLineGroup extends ImageLineGroup{
 				image.outHeight = (image.outHeight*maxContentWidth)/contentWidth;
 				image.outWidth = (image.outWidth*maxContentWidth)/contentWidth;
 				
-				height = image.outHeight + Config.THUMBNAIL_PADDING*2;
+				height = image.outHeight;
 			}
 		}
 		
@@ -137,14 +143,14 @@ class ImageSingleLineGroup extends ImageLineGroup{
 		
 		layout();
 		
-		int totalWidth = 0;
+		int contentWidth = 0;
 		
 		for (int i=0; i<imageList.size(); i++){
 			ImageCell image = imageList.get(i);			
-			totalWidth += image.outWidth + Config.THUMBNAIL_PADDING*2;
+			contentWidth += image.outWidth;
 		}
 		
-		if (totalWidth < (TOTAL_WIDTH-30)){
+		if (contentWidth < (totalWidth-30)){
 			return true;
 		}
 		else {
@@ -211,7 +217,7 @@ interface ImageRichLinePattern {
 }
 
 class ImageRichLinePatternCollection {
-	private static final int PATTERN_NUM = 1;
+	private static final int PATTERN_NUM = 3;
 	
 	private static final int IMAGE_PORTRAIT = 1;
 	private static final int IMAGE_LANDSCAPE = 2;
@@ -289,6 +295,124 @@ class ImageRichLinePatternCollection {
 			};
 			
 		};
+		
+		patterns[1] = new ImageRichLinePattern(){
+			public int imageCount(){
+				return 5;
+			}
+
+			public int match(ArrayList<ImageCell> images) {
+				
+				if (images.size() < 5){
+					return -1;
+				}
+				
+				for (int i=0; i<5; i++){
+					if (false == isImagePortrait(images.get(i))){
+						return -1;
+					}
+				}
+				return 5;
+			}
+
+			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
+				for (int i=0; i<5; i++){
+					images.get(i).xGravity = 1.0f;
+				}
+				
+				images.get(1).xGravity = images.get(2).yRatio/(images.get(1).yRatio + images.get(2).yRatio);
+				images.get(2).xGravity = images.get(1).yRatio/(images.get(2).yRatio + images.get(1).yRatio);
+				
+				images.get(3).xGravity = images.get(4).yRatio/(images.get(3).yRatio + images.get(4).yRatio);
+				images.get(4).xGravity = images.get(3).yRatio/(images.get(4).yRatio + images.get(3).yRatio);
+				
+				float compoundYRatio = images.get(1).xGravity*images.get(1).yRatio + images.get(3).xGravity*images.get(3).yRatio;
+				float compoundXGravity = images.get(0).yRatio/(compoundYRatio + images.get(0).yRatio);
+				
+				images.get(0).xGravity = compoundYRatio / (compoundYRatio + images.get(0).yRatio);
+				
+				images.get(1).xGravity *= compoundXGravity;
+				images.get(2).xGravity *= compoundXGravity;
+				images.get(3).xGravity *= compoundXGravity;
+				images.get(4).xGravity *= compoundXGravity;
+				
+				for (int i=0; i<5; i++){
+					ImageCell image = images.get(i);
+					image.outWidth = (int)(image.xGravity * totalWidth);
+					image.outHeight = (int)(image.outWidth * image.yRatio);
+				}
+				
+				images.get(0).outX = 0;
+				images.get(0).outY = 0;
+				images.get(1).outX = images.get(0).outWidth;
+				images.get(1).outY = 0;
+				images.get(2).outX = images.get(0).outWidth + images.get(1).outWidth;
+				images.get(2).outY = 0;
+				images.get(3).outX = images.get(0).outWidth;
+				images.get(3).outY = images.get(1).outHeight;
+				images.get(4).outX = images.get(0).outWidth + images.get(3).outWidth;
+				images.get(4).outY = images.get(1).outHeight;
+				
+				return images.get(0).outHeight;
+			};
+			
+		};
+		
+		patterns[2] = new ImageRichLinePattern(){
+			public int imageCount(){
+				return 5;
+			}
+
+			public int match(ArrayList<ImageCell> images) {
+				
+				if (images.size() < 5){
+					return -1;
+				}
+				
+				for (int i=0; i<5; i++){
+					if (false == isImagePortrait(images.get(i))){
+						return -1;
+					}
+				}
+				return 5;
+			}
+
+			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
+				for (int i=0; i<5; i++){
+					images.get(i).xGravity = 1.0f;
+				}
+				
+				float leftCompoundYRatio = images.get(0).yRatio + images.get(3).yRatio;
+				float rightCompoundYRatio = images.get(2).yRatio + images.get(4).yRatio;
+				
+				float tempYBase = leftCompoundYRatio*rightCompoundYRatio + leftCompoundYRatio*images.get(1).yRatio + rightCompoundYRatio*images.get(1).yRatio;
+				images.get(0).xGravity = images.get(3).xGravity = images.get(1).yRatio*rightCompoundYRatio/tempYBase;
+				images.get(2).xGravity = images.get(4).xGravity = images.get(1).yRatio*leftCompoundYRatio/tempYBase;
+				images.get(1).xGravity = leftCompoundYRatio*rightCompoundYRatio / tempYBase;
+				
+				for (int i=0; i<5; i++){
+					ImageCell image = images.get(i);
+					image.outWidth = (int)(image.xGravity * totalWidth);
+					image.outHeight = (int)(image.outWidth * image.yRatio);
+				}
+				
+				images.get(0).outX = 0;
+				images.get(0).outY = 0;
+				images.get(1).outX = images.get(0).outWidth;
+				images.get(1).outY = 0;
+				images.get(2).outX = images.get(0).outWidth + images.get(1).outWidth;
+				images.get(2).outY = 0;
+				images.get(3).outX = 0;
+				images.get(3).outY = images.get(0).outHeight;
+				images.get(4).outX = images.get(2).outX;
+				images.get(4).outY = images.get(2).outHeight;
+				
+				return images.get(1).outHeight;
+			};
+			
+		};
+	
+
 	}
 	
 	public int checkPattern(ArrayList<ImageCell> images){
@@ -307,8 +431,8 @@ class ImageRichLinePatternCollection {
 		return patterns[availablePatterns.get(index)].imageCount();
 	}
 	
-	public void applyPattern(ArrayList<ImageCell> images, int index, int totalWidth){
-		patterns[availablePatterns.get(index)].layout(images, totalWidth);
+	public int applyPattern(ArrayList<ImageCell> images, int index, int totalWidth){
+		return patterns[availablePatterns.get(index)].layout(images, totalWidth);
 	}
 	
 	ImageRichLinePattern[] patterns;
@@ -327,11 +451,13 @@ class ImageRichLineGroup extends ImageLineGroup{
 public class GalleryLayout {
 	private static final int MAX_BUFFER_LENGTH = 5;
 	
-	GalleryLayout(){
+	GalleryLayout(int containerWidth){
+		totalWidth = containerWidth;
 		lines = new ArrayList<ImageLineGroup>();
 		
 		itemBuffer = new ImageProcessBuffer(MAX_BUFFER_LENGTH);
 		patterns = new ImageRichLinePatternCollection();
+		random = new Random();
 	}
 	
 	public void addLine(ImageLineGroup aLine){
@@ -345,15 +471,17 @@ public class GalleryLayout {
 		if (availPattern > 0){
 			ImageRichLineGroup line = new ImageRichLineGroup();
 			
-			int consumeCount = patterns.pickPattern(0);
+			int choice = random.nextInt(availPattern);
+			int consumeCount = patterns.pickPattern(choice);
 			ArrayList<ImageCell> images = itemBuffer.shed(consumeCount);
-			patterns.applyPattern(images, 0, 1080);
+			int height = patterns.applyPattern(images, choice, totalWidth);
 			line.addImages(images);
+			line.height = height;
 			addLine(line);
 		}
 		else {
 			/*No pattern found */
-			ImageSingleLineGroup line = new ImageSingleLineGroup();
+			ImageSingleLineGroup line = new ImageSingleLineGroup(totalWidth);
 			while (true == line.needMoreImage() && false == itemBuffer.isEmpty()){
 				line.addImage(itemBuffer.remove(0));
 			}
@@ -381,4 +509,6 @@ public class GalleryLayout {
 	public ArrayList<ImageLineGroup> lines = null;
 	private  ImageProcessBuffer itemBuffer = null;
 	private ImageRichLinePatternCollection patterns = null;
+	private Random random = null;
+	private int totalWidth = 0;
 }
