@@ -31,6 +31,7 @@ import android.view.ViewPropertyAnimator;
 import android.view.ViewTreeObserver;
 import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
+import android.widget.AbsoluteLayout;
 import android.widget.BaseExpandableListAdapter;
 import android.widget.ExpandableListView;
 import android.widget.ImageView;
@@ -47,7 +48,7 @@ public class GalleryList extends ExpandableListActivity {
 		static public final int MAX_ALBUM = 1000;
 		static public final int MAX_PICTURE_IN_ALBUM = 10000;
 		
-		static public final int THUMBNAILS_PER_LINE = 4;
+		static public final int THUMBNAILS_PER_LINE = 5;
 		static public final int THUMBNAIL_WIDTH = 132;
 		static public final int THUMBNAIL_HEIGHT = 132;
 		static public final int THUMBNAIL_BOUND_WIDTH = 264;
@@ -131,136 +132,8 @@ public class GalleryList extends ExpandableListActivity {
 	}
 	
 	
-	class ImageCell {
-		ImageCell(long aId, int aWidth, int aHeight){
-			id = aId;
-		    inWidth = aWidth;
-		    inHeight = aHeight;
-		}
-		
-		public long id = 0;
-		public int inWidth = 0;
-		public int inHeight = 0;
-		public int outWidth = 0;
-		public int outHeight = 0;
-	}
 	
-	class ImageLineGroup {
-		private static final int TOTAL_WIDTH = 1080;
-		private static final int MAX_HEIGHT = 540;
-		private static final int MIN_HEIGHT = 180;
 
-		
-		ImageLineGroup(){
-			imageList = new ArrayList<ImageCell>();
-			decodeOptions = new BitmapFactory.Options();
-			decodeOptions.inJustDecodeBounds = true;
-		}
-		
-
-		public void addImage(long id, int width, int height){
-			ImageCell image = new ImageCell(id, width, height);
-			imageList.add(image);
-		}
-		
-		private void layout(){
-			int maxContentWidth = TOTAL_WIDTH - imageList.size()*Config.THUMBNAIL_PADDING*2;
-			int contentWidth = 0;
-			
-			/*First Round, to resize all picture as high as MAX_HEIGHT*/
-			for (int i=0; i<imageList.size(); i++){
-				ImageCell image = imageList.get(i);
-				image.outHeight = MAX_HEIGHT;
-				image.outWidth = (image.inWidth*image.outHeight)/image.inHeight;
-				
-				contentWidth += image.outWidth;
-			}
-			
-			if (contentWidth > maxContentWidth){
-				for (int i=0; i<imageList.size(); i++){
-					ImageCell image = imageList.get(i);
-					
-					image.outHeight = (image.outHeight*maxContentWidth)/contentWidth;
-					image.outWidth = (image.outWidth*maxContentWidth)/contentWidth;
-					
-					height = image.outHeight + Config.THUMBNAIL_PADDING*2;
-				}
-			}
-			
-		}
-		
-		public boolean properForMoreImage(){
-			if (imageList.size() >= 4 || height<=MIN_HEIGHT){
-				return false;
-			}
-			return true;
-		}
-		
-		public boolean needMoreImage(){
-			if (imageList.isEmpty()){
-				return true;
-			}
-			else if (imageList.size() >= 4){
-				layout();
-				return false; //Consider as "full" if 4 pictures in one line...
-			}
-			
-			layout();
-			
-			int totalWidth = 0;
-			
-			for (int i=0; i<imageList.size(); i++){
-				ImageCell image = imageList.get(i);			
-				totalWidth += image.outWidth + Config.THUMBNAIL_PADDING*2;
-			}
-			
-			if (totalWidth < (TOTAL_WIDTH-30)){
-				return true;
-			}
-			else {
-				return false;
-			}
-
-		}
-		
-		
-		public int height;
-		public ArrayList<ImageCell> imageList;
-		public BitmapFactory.Options decodeOptions = null;
-	}
-	
-	class GalleryLayout {
-		GalleryLayout(){
-			lines = new ArrayList<ImageLineGroup>();
-		}
-		
-		public void addLine(ImageLineGroup aLine){
-			lines.add(aLine);
-		}
-		
-		public void addImage(long id, int width, int height){
-			ImageLineGroup line = null;
-			
-			if (lines.size()>0) {
-				line = lines.get(lines.size()-1);
-			}
-			
-			if (line != null && true == line.needMoreImage()){
-				line.addImage(id, width, height);
-			}
-			else {
-				line = new ImageLineGroup();
-				line.addImage(id, width, height);
-				addLine(line);
-			}
-		}
-		
-		public int getLineNum(){
-			return lines.size();
-		}
-		
-		public ArrayList<ImageLineGroup> lines = null;
-	}
 	
 	class Position {
 		Position(long id, int top, int bottom, View view){
@@ -810,13 +683,14 @@ public class GalleryList extends ExpandableListActivity {
 		@Override
 		public View getChildView(int groupPosition, int childPosition,
 				boolean isLastChild, View convertView, ViewGroup parent) {
-			LinearLayout line;			
+			AbsoluteLayout line;			
 			ViewHolder holder;
 			
 			/*Prepare the view (no content yet)*/
 			if (convertView == null || !getRecyclable(convertView)){
-				line = new LinearLayout(getApplicationContext());
-				line.setOrientation(LinearLayout.HORIZONTAL);
+				//line = new LinearLayout(getApplicationContext());
+				//line.setOrientation(LinearLayout.HORIZONTAL);
+				line = new AbsoluteLayout(getApplicationContext());
 				
 	            holder = new ViewHolder();
 	            
@@ -827,14 +701,14 @@ public class GalleryList extends ExpandableListActivity {
 					holder.icons[i].setScaleType(ImageView.ScaleType.CENTER_CROP);
 					holder.icons[i].setPadding(Config.THUMBNAIL_PADDING, Config.THUMBNAIL_PADDING, Config.THUMBNAIL_PADDING, Config.THUMBNAIL_PADDING);
 					
-	    			line.addView(holder.icons[i], new LinearLayout.LayoutParams(Config.THUMBNAIL_BOUND_WIDTH,Config.THUMBNAIL_BOUND_HEIGHT));
+	    			line.addView(holder.icons[i], new AbsoluteLayout.LayoutParams(Config.THUMBNAIL_BOUND_WIDTH,Config.THUMBNAIL_BOUND_HEIGHT,0,0));
 	            }
 				
 				line.setTag(R.id.data_holder, holder);
 				line.setTag(R.id.recyclable, true);
 			}
 			else {
-				line = (LinearLayout)convertView;
+				line = (AbsoluteLayout)convertView;
 				holder = (ViewHolder)(line.getTag(R.id.data_holder)); 
 				
 				for (int i=0; i<Config.THUMBNAILS_PER_LINE; i++){
@@ -853,13 +727,15 @@ public class GalleryList extends ExpandableListActivity {
 	        for (int i=0; i<Config.THUMBNAILS_PER_LINE; i++){
 	        	
 	        	
-	        	if (i >= currentLine.imageList.size()){
+	        	if (i >= currentLine.getImageNum()){
 	        		holder.icons[i].setVisibility(View.GONE);
 	        	}
 	        	else {
-	        		Bitmap bmp = getBitmapFromRamCache(currentLine.imageList.get(i).id);
+	        		Bitmap bmp = getBitmapFromRamCache(currentLine.getImage(i).id);
+	        		ImageCell image = currentLine.getImage(i);
+	      
 	        		
-	        		holder.icons[i].setLayoutParams(new LinearLayout.LayoutParams(currentLine.imageList.get(i).outWidth+2*Config.THUMBNAIL_PADDING, currentLine.imageList.get(i).outHeight+2*Config.THUMBNAIL_PADDING));
+	        		holder.icons[i].setLayoutParams(new AbsoluteLayout.LayoutParams(image.outWidth+2*Config.THUMBNAIL_PADDING, image.outHeight+2*Config.THUMBNAIL_PADDING, image.outX, image.outY));
 	        		holder.icons[i].setVisibility(View.VISIBLE);
 	        		
 	        		if (bmp != null){
@@ -867,7 +743,7 @@ public class GalleryList extends ExpandableListActivity {
 	        		}
 	        		else {
 	        			BitmapWorkerTask task = new BitmapWorkerTask(holder.icons[i]);
-					    task.execute(currentLine.imageList.get(i).id);
+					    task.execute(currentLine.getImage(i).id);
 					    holder.task[i] = task;
 					    holder.icons[i].setScaleType(ImageView.ScaleType.FIT_XY);
 					    holder.icons[i].setImageResource(R.drawable.grey);	
