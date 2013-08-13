@@ -205,15 +205,83 @@ class ImageProcessBuffer{
 	private int maxLength = 0;
 }
 
-interface ImageRichLinePattern {
+abstract class ImageRichLinePattern {
 	/*Return the number of items matching the pattern*/
-	int match(ArrayList<ImageCell> images);
+	abstract int match(ArrayList<ImageCell> images);
 	
 	/*Just return how many items the pattern applies*/
-	int imageCount();
+	abstract int imageCount();
 	
 	/*Return the height of line*/
-	int layout(ArrayList<ImageCell> images, int totalWidth);
+	abstract int layout(ArrayList<ImageCell> images, int totalWidth);
+	
+	private void fillSubDet(float in[][],float out[][], int removeX, int removeY, int lev){
+		
+		for (int i=0; i<(lev-1); i++){
+			for (int j=0; j<(lev-1); j++){
+				if (i>=removeX && j>=removeY){
+					out[i][j] = in[i+1][j+1];
+				}
+				else if (i>=removeX){
+					out[i][j] = in[i+1][j];
+				}
+				else if (j>=removeY){
+					out[i][j] = in[i][j+1];
+				}
+				else {
+					out[i][j] = in[i][j];
+				}
+			}
+		}
+	}
+	
+	private void fillValueDet(float in[][], float out[][], int replaceY, int lev){
+		for (int i=0; i<lev; i++){
+			for (int j=0; j<lev; j++){
+				if (j==replaceY){
+					out[i][j] = in[i][lev];
+				}
+				else {
+					out[i][j] = in[i][j];
+				}
+			}
+		}
+	}
+	
+	private float calcDet(float mat[][], int lev){
+		if (lev == 2){
+			return ((mat[0][0]*mat[1][1])-(mat[0][1]*mat[1][0]));
+		}
+		else {
+			float result = 0.0f;
+			float tempDet[][] = new float[lev-1][lev-1];
+			
+			for (int i=0; i<lev; i++){
+				fillSubDet(mat, tempDet, 0, i, lev);
+				
+				float subDetValue = calcDet(tempDet, lev-1);
+				if (i%2 == 0){
+					result += mat[0][i] * subDetValue;
+				}
+				else {
+					result -= mat[0][i] * subDetValue;
+				}
+			}
+			return result;
+		}
+	}
+	
+	protected void calcMatrix(float mat[][], float result[], int lev){
+        float tempValueDet[][] = new float[lev][lev];
+        float baseDetValue = calcDet(mat, lev);
+        
+        for (int i=0; i<lev; i++){
+        	fillValueDet(mat, tempValueDet, i, lev);
+        	
+        	result[i] = calcDet(tempValueDet, lev) / baseDetValue;
+        }
+	
+	}
 }
 
 class ImageRichLinePatternCollection {
