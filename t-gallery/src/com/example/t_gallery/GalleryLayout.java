@@ -108,7 +108,7 @@ class ImageSingleLineGroup extends ImageLineGroup{
 				image.outHeight = (image.outHeight*maxContentWidth)/contentWidth;
 				image.outWidth = (image.outWidth*maxContentWidth)/contentWidth;
 				
-				height = image.outHeight;
+				height = image.outHeight + 2*Config.THUMBNAIL_PADDING;
 			}
 		}
 		
@@ -120,7 +120,7 @@ class ImageSingleLineGroup extends ImageLineGroup{
 			image.outX = contentWidth;
 			image.outY = 0;
 			
-			contentWidth += image.outWidth;
+			contentWidth += image.outWidth + 2*Config.THUMBNAIL_PADDING;
 		}
 		
 	}
@@ -147,7 +147,7 @@ class ImageSingleLineGroup extends ImageLineGroup{
 		
 		for (int i=0; i<imageList.size(); i++){
 			ImageCell image = imageList.get(i);			
-			contentWidth += image.outWidth;
+			contentWidth += (image.outWidth + 2*Config.THUMBNAIL_PADDING);
 		}
 		
 		if (contentWidth < (totalWidth-30)){
