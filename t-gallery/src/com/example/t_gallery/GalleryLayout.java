@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import android.graphics.BitmapFactory;
+import android.util.Log;
 
 import com.example.t_gallery.GalleryList.Config;
 
@@ -303,6 +304,7 @@ class ImageRichLinePatternCollection {
 		availablePatterns = new ArrayList<Integer>();
 		
 		patterns[0] = new ImageRichLinePattern(){
+						
 			public int imageCount(){
 				return 5;
 			}
@@ -322,44 +324,41 @@ class ImageRichLinePatternCollection {
 			}
 
 			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
-				for (int i=0; i<5; i++){
-					images.get(i).xGravity = 1.0f;
-				}
 				
-				images.get(0).xGravity = images.get(1).yRatio/(images.get(0).yRatio + images.get(1).yRatio);
-				images.get(1).xGravity = images.get(0).yRatio/(images.get(1).yRatio + images.get(0).yRatio);
+				float matrix[][] = {
+						{images.get(0).yRatio, -images.get(1).yRatio, 0, 0, 0, 0},
+						{0, 0, 0, images.get(3).yRatio, -images.get(4).yRatio, 0},
+						{-images.get(0).yRatio, 0, images.get(2).yRatio, -images.get(3).yRatio, 0, 2*Config.THUMBNAIL_PADDING},
+						{1, 1, 0, -1, -1,0},
+						{1, 1, 1, 0, 0, totalWidth-6*Config.THUMBNAIL_PADDING},
+				};
 				
-				images.get(2).xGravity = images.get(3).yRatio/(images.get(2).yRatio + images.get(3).yRatio);
-				images.get(3).xGravity = images.get(2).yRatio/(images.get(3).yRatio + images.get(2).yRatio);
+				float widths[] = new float[5];
 				
-				float compoundYRatio = images.get(0).xGravity*images.get(0).yRatio + images.get(2).xGravity*images.get(2).yRatio;
-				float compoundXGravity = images.get(4).yRatio/(compoundYRatio + images.get(4).yRatio);
-				
-				images.get(4).xGravity = compoundYRatio / (compoundYRatio + images.get(4).yRatio);
-				
-				images.get(0).xGravity *= compoundXGravity;
-				images.get(1).xGravity *= compoundXGravity;
-				images.get(2).xGravity *= compoundXGravity;
-				images.get(3).xGravity *= compoundXGravity;
+				calcMatrix(matrix, widths, 5);
 				
 				for (int i=0; i<5; i++){
 					ImageCell image = images.get(i);
-					image.outWidth = (int)(image.xGravity * totalWidth);
+					image.outWidth = (int)widths[i];
 					image.outHeight = (int)(image.outWidth * image.yRatio);
 				}
 				
 				images.get(0).outX = 0;
 				images.get(0).outY = 0;
-				images.get(1).outX = images.get(0).outWidth;
-				images.get(1).outY = 0;
-				images.get(2).outX = 0;
-				images.get(2).outY = images.get(0).outHeight;
-				images.get(3).outX = images.get(2).outWidth;
-				images.get(3).outY = images.get(0).outHeight;
-				images.get(4).outX = images.get(0).outWidth + images.get(1).outWidth;
-				images.get(4).outY = 0;
 				
-				return images.get(4).outHeight;
+				images.get(1).outX = images.get(0).outWidth+2*Config.THUMBNAIL_PADDING;
+				images.get(1).outY = 0;
+				
+				images.get(2).outX = images.get(1).outX + images.get(1).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(2).outY = 0;
+				
+				images.get(3).outX = 0;
+				images.get(3).outY = images.get(0).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				images.get(4).outX = images.get(3).outX + images.get(3).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(4).outY = images.get(3).outY;
+				
+				return images.get(2).outHeight + 2*Config.THUMBNAIL_PADDING;
 			};
 			
 		};
@@ -384,44 +383,41 @@ class ImageRichLinePatternCollection {
 			}
 
 			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
-				for (int i=0; i<5; i++){
-					images.get(i).xGravity = 1.0f;
-				}
 				
-				images.get(1).xGravity = images.get(2).yRatio/(images.get(1).yRatio + images.get(2).yRatio);
-				images.get(2).xGravity = images.get(1).yRatio/(images.get(2).yRatio + images.get(1).yRatio);
+				float matrix[][] = {
+						{0, images.get(1).yRatio, -images.get(2).yRatio, 0, 0, 0},
+						{0, 0, 0, images.get(3).yRatio, -images.get(4).yRatio, 0},
+						{images.get(0).yRatio, -images.get(1).yRatio, 0, -images.get(3).yRatio, 0, 2*Config.THUMBNAIL_PADDING},
+						{0, 1, 1, -1, -1,0},
+						{1, 1, 1, 0, 0, totalWidth-6*Config.THUMBNAIL_PADDING},
+				};
 				
-				images.get(3).xGravity = images.get(4).yRatio/(images.get(3).yRatio + images.get(4).yRatio);
-				images.get(4).xGravity = images.get(3).yRatio/(images.get(4).yRatio + images.get(3).yRatio);
+				float widths[] = new float[5];
 				
-				float compoundYRatio = images.get(1).xGravity*images.get(1).yRatio + images.get(3).xGravity*images.get(3).yRatio;
-				float compoundXGravity = images.get(0).yRatio/(compoundYRatio + images.get(0).yRatio);
-				
-				images.get(0).xGravity = compoundYRatio / (compoundYRatio + images.get(0).yRatio);
-				
-				images.get(1).xGravity *= compoundXGravity;
-				images.get(2).xGravity *= compoundXGravity;
-				images.get(3).xGravity *= compoundXGravity;
-				images.get(4).xGravity *= compoundXGravity;
+				calcMatrix(matrix, widths, 5);
 				
 				for (int i=0; i<5; i++){
 					ImageCell image = images.get(i);
-					image.outWidth = (int)(image.xGravity * totalWidth);
+					image.outWidth = (int)widths[i];
 					image.outHeight = (int)(image.outWidth * image.yRatio);
 				}
 				
 				images.get(0).outX = 0;
 				images.get(0).outY = 0;
-				images.get(1).outX = images.get(0).outWidth;
-				images.get(1).outY = 0;
-				images.get(2).outX = images.get(0).outWidth + images.get(1).outWidth;
-				images.get(2).outY = 0;
-				images.get(3).outX = images.get(0).outWidth;
-				images.get(3).outY = images.get(1).outHeight;
-				images.get(4).outX = images.get(0).outWidth + images.get(3).outWidth;
-				images.get(4).outY = images.get(1).outHeight;
 				
-				return images.get(0).outHeight;
+				images.get(1).outX = images.get(0).outWidth+2*Config.THUMBNAIL_PADDING;
+				images.get(1).outY = 0;
+				
+				images.get(2).outX = images.get(1).outX + images.get(1).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(2).outY = 0;
+				
+				images.get(3).outX = images.get(1).outX;
+				images.get(3).outY = images.get(1).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				images.get(4).outX = images.get(3).outX + images.get(3).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(4).outY = images.get(3).outY;
+				
+				return images.get(0).outHeight + 2*Config.THUMBNAIL_PADDING;
 			};
 			
 		};
@@ -446,36 +442,41 @@ class ImageRichLinePatternCollection {
 			}
 
 			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
-				for (int i=0; i<5; i++){
-					images.get(i).xGravity = 1.0f;
-				}
 				
-				float leftCompoundYRatio = images.get(0).yRatio + images.get(3).yRatio;
-				float rightCompoundYRatio = images.get(2).yRatio + images.get(4).yRatio;
+				float matrix[][] = {
+						{-images.get(0).yRatio, images.get(1).yRatio, 0, -images.get(3).yRatio, 0, 2*Config.THUMBNAIL_PADDING},
+						{0, images.get(1).yRatio, -images.get(2).yRatio, 0, -images.get(4).yRatio, 2*Config.THUMBNAIL_PADDING},
+						{0, 0, 1, 0, -1, 0},
+						{1, 0, 0, -1, 0, 0},
+						{1, 1, 1, 0, 0, totalWidth-6*Config.THUMBNAIL_PADDING},
+				};
 				
-				float tempYBase = leftCompoundYRatio*rightCompoundYRatio + leftCompoundYRatio*images.get(1).yRatio + rightCompoundYRatio*images.get(1).yRatio;
-				images.get(0).xGravity = images.get(3).xGravity = images.get(1).yRatio*rightCompoundYRatio/tempYBase;
-				images.get(2).xGravity = images.get(4).xGravity = images.get(1).yRatio*leftCompoundYRatio/tempYBase;
-				images.get(1).xGravity = leftCompoundYRatio*rightCompoundYRatio / tempYBase;
+				float widths[] = new float[5];
+				
+				calcMatrix(matrix, widths, 5);
 				
 				for (int i=0; i<5; i++){
 					ImageCell image = images.get(i);
-					image.outWidth = (int)(image.xGravity * totalWidth);
+					image.outWidth = (int)widths[i];
 					image.outHeight = (int)(image.outWidth * image.yRatio);
 				}
 				
 				images.get(0).outX = 0;
 				images.get(0).outY = 0;
-				images.get(1).outX = images.get(0).outWidth;
-				images.get(1).outY = 0;
-				images.get(2).outX = images.get(0).outWidth + images.get(1).outWidth;
-				images.get(2).outY = 0;
-				images.get(3).outX = 0;
-				images.get(3).outY = images.get(0).outHeight;
-				images.get(4).outX = images.get(2).outX;
-				images.get(4).outY = images.get(2).outHeight;
 				
-				return images.get(1).outHeight;
+				images.get(1).outX = images.get(0).outWidth+2*Config.THUMBNAIL_PADDING;
+				images.get(1).outY = 0;
+				
+				images.get(2).outX = images.get(1).outX + images.get(1).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(2).outY = 0;
+				
+				images.get(3).outX = 0;
+				images.get(3).outY = images.get(0).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				images.get(4).outX = images.get(2).outX;
+				images.get(4).outY = images.get(2).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				return images.get(1).outHeight + 2*Config.THUMBNAIL_PADDING;
 			};
 			
 		};
