@@ -53,7 +53,7 @@ public class GalleryList extends ExpandableListActivity {
 		static public final int THUMBNAIL_HEIGHT = 132;
 		static public final int THUMBNAIL_BOUND_WIDTH = 264;
 		static public final int THUMBNAIL_BOUND_HEIGHT = 264;
-		static public final int THUMBNAIL_PADDING = 6;
+		static public final int THUMBNAIL_PADDING = 10;
 		
 		/*RAM cache*/
 		static public final int RAM_CACHE_SIZE_KB = (int)(Runtime.getRuntime().maxMemory()/4096);
@@ -95,7 +95,7 @@ public class GalleryList extends ExpandableListActivity {
 					null);
 			
 			
-			GalleryLayout galleryLayout = new GalleryLayout(1055);
+			GalleryLayout galleryLayout = new GalleryLayout(1080);
 			
 			mImageLists[i].moveToFirst();
 			
