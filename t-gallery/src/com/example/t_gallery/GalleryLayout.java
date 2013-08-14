@@ -286,17 +286,30 @@ abstract class ImageRichLinePattern {
 }
 
 class ImageRichLinePatternCollection {
-	private static final int PATTERN_NUM = 11;
+	private static final int PATTERN_NUM = 15;
 	
-	private static final int IMAGE_PORTRAIT = 1;
-	private static final int IMAGE_LANDSCAPE = 2;
+	private static final int IMAGE_PANORAMA = 0;
+	private static final int IMAGE_LANDSCAPE = 1;
+	private static final int IMAGE_SQUARE = 2;
+	private static final int IMAGE_PORTRAIT = 3;
+	private static final int IMAGE_SLIM = 4;
 	
-	public static boolean isImagePortrait(ImageCell image){
-		return (image.yRatio > 1);
-	}
-	
-	public static boolean isImageSlim(ImageCell image){
-		return (image.yRatio >= 1.6) || (image.yRatio <= 0.625);
+	public int getImageType(ImageCell image){
+		if (image.yRatio <= 0.4f){
+			return IMAGE_PANORAMA;
+		}
+		else if (image.yRatio <= 0.85f){
+			return IMAGE_LANDSCAPE;
+		}
+		else if (image.yRatio <= 1.15f){
+			return IMAGE_SQUARE;
+		}
+		else if (image.yRatio <= 2.5f){
+			return IMAGE_PORTRAIT;
+		}
+		else {
+			return IMAGE_SLIM;
+		}
 	}
 	
 	ImageRichLinePatternCollection(){
@@ -316,7 +329,9 @@ class ImageRichLinePatternCollection {
 				}
 				
 				for (int i=0; i<5; i++){
-					if (false == isImagePortrait(images.get(i))){
+					int type = getImageType(images.get(i));
+					
+					if (IMAGE_LANDSCAPE == type || IMAGE_PANORAMA == type){
 						return -1;
 					}
 				}
@@ -375,7 +390,9 @@ class ImageRichLinePatternCollection {
 				}
 				
 				for (int i=0; i<5; i++){
-					if (false == isImagePortrait(images.get(i))){
+					int type = getImageType(images.get(i));
+					
+					if (IMAGE_LANDSCAPE == type || IMAGE_PANORAMA == type){
 						return -1;
 					}
 				}
@@ -434,7 +451,9 @@ class ImageRichLinePatternCollection {
 				}
 				
 				for (int i=0; i<5; i++){
-					if (false == isImagePortrait(images.get(i))){
+					int type = getImageType(images.get(i));
+					
+					if (IMAGE_LANDSCAPE == type || IMAGE_PANORAMA == type){
 						return -1;
 					}
 				}
@@ -492,10 +511,11 @@ class ImageRichLinePatternCollection {
 					return -1;
 				}
 				
-				if (true == isImagePortrait(images.get(0)) && 
-					false == isImagePortrait(images.get(1)) &&
-					(true==isImagePortrait(images.get(2)) || true==isImagePortrait(images.get(3)))
-					){
+				if ((IMAGE_PORTRAIT == getImageType(images.get(0)) || IMAGE_SLIM == getImageType(images.get(0))) && 
+						IMAGE_LANDSCAPE == getImageType(images.get(1)) &&
+						(IMAGE_SLIM != getImageType(images.get(2)) && IMAGE_PANORAMA != getImageType(images.get(2))) && 
+						(IMAGE_SLIM != getImageType(images.get(3)) && IMAGE_PANORAMA != getImageType(images.get(3)))
+						){
 					return 4;
 				}
 				else {
@@ -550,9 +570,10 @@ class ImageRichLinePatternCollection {
 					return -1;
 				}
 				
-				if (true == isImagePortrait(images.get(0)) && 
-					false == isImagePortrait(images.get(3)) &&
-					(true==isImagePortrait(images.get(1)) || true==isImagePortrait(images.get(2)))
+				if ((IMAGE_PORTRAIT == getImageType(images.get(0)) || IMAGE_SLIM == getImageType(images.get(0))) && 
+					IMAGE_LANDSCAPE == getImageType(images.get(3)) &&
+					(IMAGE_SLIM != getImageType(images.get(1)) && IMAGE_PANORAMA != getImageType(images.get(1))) && 
+					(IMAGE_SLIM != getImageType(images.get(2)) && IMAGE_PANORAMA != getImageType(images.get(2)))
 					){
 					return 4;
 				}
@@ -608,10 +629,11 @@ class ImageRichLinePatternCollection {
 					return -1;
 				}
 				
-				if (true == isImagePortrait(images.get(1)) && 
-					false == isImagePortrait(images.get(0)) &&
-					(true==isImagePortrait(images.get(2)) || true==isImagePortrait(images.get(3)))
-					){
+				if ((IMAGE_PORTRAIT == getImageType(images.get(1)) || IMAGE_SLIM == getImageType(images.get(1))) && 
+						IMAGE_LANDSCAPE == getImageType(images.get(0)) &&
+						(IMAGE_SLIM != getImageType(images.get(2)) && IMAGE_PANORAMA != getImageType(images.get(2))) && 
+						(IMAGE_SLIM != getImageType(images.get(3)) && IMAGE_PANORAMA != getImageType(images.get(3)))
+						){
 					return 4;
 				}
 				else {
@@ -666,10 +688,11 @@ class ImageRichLinePatternCollection {
 					return -1;
 				}
 				
-				if (true == isImagePortrait(images.get(2)) && 
-					false == isImagePortrait(images.get(3)) &&
-					(true==isImagePortrait(images.get(0)) || true==isImagePortrait(images.get(1)))
-					){
+				if ((IMAGE_PORTRAIT == getImageType(images.get(2)) || IMAGE_SLIM == getImageType(images.get(2))) && 
+						IMAGE_LANDSCAPE == getImageType(images.get(3)) &&
+						(IMAGE_SLIM != getImageType(images.get(0)) && IMAGE_PANORAMA != getImageType(images.get(0))) && 
+						(IMAGE_SLIM != getImageType(images.get(1)) && IMAGE_PANORAMA != getImageType(images.get(1)))
+						){
 					return 4;
 				}
 				else {
@@ -724,9 +747,9 @@ class ImageRichLinePatternCollection {
 					return -1;
 				}
 				
-				if (true == isImagePortrait(images.get(0)) && 
-					false == isImagePortrait(images.get(1)) &&
-					false == isImagePortrait(images.get(2))){
+				if ((IMAGE_PORTRAIT == getImageType(images.get(0)) || IMAGE_SLIM == getImageType(images.get(0))) && 
+					(IMAGE_LANDSCAPE == getImageType(images.get(1)) || IMAGE_SQUARE == getImageType(images.get(1))) &&
+					(IMAGE_LANDSCAPE == getImageType(images.get(2)) || IMAGE_SQUARE == getImageType(images.get(2)))){
 					return 3;
 				}
 				else {
@@ -777,9 +800,9 @@ class ImageRichLinePatternCollection {
 					return -1;
 				}
 				
-				if (true == isImagePortrait(images.get(1)) && 
-					false == isImagePortrait(images.get(0)) &&
-					false == isImagePortrait(images.get(2))){
+				if ((IMAGE_PORTRAIT == getImageType(images.get(1)) || IMAGE_SLIM == getImageType(images.get(1))) && 
+						(IMAGE_LANDSCAPE == getImageType(images.get(0)) || IMAGE_SQUARE == getImageType(images.get(0))) &&
+						(IMAGE_LANDSCAPE == getImageType(images.get(2)) || IMAGE_SQUARE == getImageType(images.get(2)))){
 					return 3;
 				}
 				else {
@@ -831,7 +854,8 @@ class ImageRichLinePatternCollection {
 				}
 				
 				for (int i=0; i<5; i++){
-					if(isImagePortrait(images.get(i))){
+					int type = getImageType(images.get(i));
+					if(!(IMAGE_LANDSCAPE == type || IMAGE_SQUARE == type)){
 						return -1;
 					}
 				}
@@ -890,7 +914,8 @@ class ImageRichLinePatternCollection {
 				}
 				
 				for (int i=0; i<5; i++){
-					if(isImagePortrait(images.get(i))){
+					int type = getImageType(images.get(i));
+					if(!(IMAGE_LANDSCAPE == type || IMAGE_SQUARE == type)){
 						return -1;
 					}
 				}
@@ -933,6 +958,251 @@ class ImageRichLinePatternCollection {
 				images.get(4).outY = images.get(3).outHeight + 2*Config.THUMBNAIL_PADDING;
 				
 				return images.get(3).outHeight + images.get(4).outHeight + 4*Config.THUMBNAIL_PADDING;
+			};
+			
+		};
+		
+		patterns[11] = new ImageRichLinePattern(){
+			public int imageCount(){
+				return 4;
+			}
+
+			public int match(ArrayList<ImageCell> images) {
+				
+				if (images.size() < 4){
+					return -1;
+				}
+				
+				if ((IMAGE_PORTRAIT == getImageType(images.get(0)) || IMAGE_SLIM == getImageType(images.get(0))) && 
+					(IMAGE_PORTRAIT == getImageType(images.get(1)) || IMAGE_SLIM == getImageType(images.get(1))) &&
+					(IMAGE_LANDSCAPE == getImageType(images.get(2)) || IMAGE_SQUARE == getImageType(images.get(2))) &&
+					(IMAGE_LANDSCAPE == getImageType(images.get(3)) || IMAGE_SQUARE == getImageType(images.get(3)))){
+					return 4;
+				}
+				else {
+					return -1;
+				}
+			}
+
+			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
+				
+				float matrix[][] = {
+						{images.get(0).yRatio, -images.get(1).yRatio, 0, 0, 0},
+						{0, 0, 1, -1, 0},
+						{images.get(0).yRatio, 0, -images.get(2).yRatio, -images.get(3).yRatio, 2*Config.THUMBNAIL_PADDING},
+						{1, 1, 1, 0, totalWidth-6*Config.THUMBNAIL_PADDING},						
+				};
+				
+				float widths[] = new float[4];
+				
+				calcMatrix(matrix, widths, 4);
+				
+				for (int i=0; i<4; i++){
+					ImageCell image = images.get(i);
+					image.outWidth = (int)widths[i];
+					image.outHeight = (int)(image.outWidth * image.yRatio);
+				}
+				
+				images.get(0).outX = 0;
+				images.get(0).outY = 0;
+				
+				images.get(1).outX = images.get(0).outWidth+2*Config.THUMBNAIL_PADDING;
+				images.get(1).outY = 0;
+				
+				images.get(2).outX = images.get(1).outX + images.get(1).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(2).outY = 0;
+				
+				images.get(3).outX = images.get(2).outX;
+				images.get(3).outY = images.get(2).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				return images.get(0).outHeight + 2*Config.THUMBNAIL_PADDING;
+			};
+			
+		};
+		
+		patterns[12] = new ImageRichLinePattern(){
+			public int imageCount(){
+				return 4;
+			}
+
+			public int match(ArrayList<ImageCell> images) {
+				
+				if (images.size() < 4){
+					return -1;
+				}
+				
+				if ((IMAGE_PORTRAIT == getImageType(images.get(0)) || IMAGE_SLIM == getImageType(images.get(0))) && 
+					(IMAGE_PORTRAIT == getImageType(images.get(3)) || IMAGE_SLIM == getImageType(images.get(3))) &&
+					(IMAGE_LANDSCAPE == getImageType(images.get(1)) || IMAGE_SQUARE == getImageType(images.get(1))) &&
+					(IMAGE_LANDSCAPE == getImageType(images.get(2)) || IMAGE_SQUARE == getImageType(images.get(2)))){
+					return 4;
+				}
+				else {
+					return -1;
+				}
+			}
+
+			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
+				
+				float matrix[][] = {
+						{images.get(0).yRatio, 0, 0, -images.get(3).yRatio, 0},
+						{0, 1, -1, 0, 0},
+						{images.get(0).yRatio,  -images.get(1).yRatio, -images.get(2).yRatio, 0, 2*Config.THUMBNAIL_PADDING},
+						{1, 1, 0, 1, totalWidth-6*Config.THUMBNAIL_PADDING},						
+				};
+				
+				float widths[] = new float[4];
+				
+				calcMatrix(matrix, widths, 4);
+				
+				for (int i=0; i<4; i++){
+					ImageCell image = images.get(i);
+					image.outWidth = (int)widths[i];
+					image.outHeight = (int)(image.outWidth * image.yRatio);
+				}
+				
+				images.get(0).outX = 0;
+				images.get(0).outY = 0;
+				
+				images.get(1).outX = images.get(0).outWidth+2*Config.THUMBNAIL_PADDING;
+				images.get(1).outY = 0;
+				
+				images.get(2).outX = images.get(1).outX;
+				images.get(2).outY = images.get(1).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				images.get(3).outX = images.get(1).outX + images.get(1).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(3).outY = 0;
+				
+				return images.get(0).outHeight + 2*Config.THUMBNAIL_PADDING;
+			};
+			
+		};
+		
+		patterns[13] = new ImageRichLinePattern(){
+			public int imageCount(){
+				return 4;
+			}
+
+			public int match(ArrayList<ImageCell> images) {
+				
+				if (images.size() < 4){
+					return -1;
+				}
+				
+				if ((IMAGE_PORTRAIT == getImageType(images.get(2)) || IMAGE_SLIM == getImageType(images.get(2))) && 
+					(IMAGE_PORTRAIT == getImageType(images.get(3)) || IMAGE_SLIM == getImageType(images.get(3))) &&
+					(IMAGE_LANDSCAPE == getImageType(images.get(0)) || IMAGE_SQUARE == getImageType(images.get(0))) &&
+					(IMAGE_LANDSCAPE == getImageType(images.get(1)) || IMAGE_SQUARE == getImageType(images.get(1)))){
+					return 4;
+				}
+				else {
+					return -1;
+				}
+			}
+
+			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
+				
+				float matrix[][] = {
+						{0, 0, images.get(2).yRatio, -images.get(3).yRatio, 0},
+						{1, -1, 0, 0, 0},
+						{-images.get(0).yRatio, -images.get(1).yRatio, images.get(2).yRatio, 0, 2*Config.THUMBNAIL_PADDING},
+						{1, 0, 1, 1, totalWidth-6*Config.THUMBNAIL_PADDING},						
+				};
+				
+				float widths[] = new float[4];
+				
+				calcMatrix(matrix, widths, 4);
+				
+				for (int i=0; i<4; i++){
+					ImageCell image = images.get(i);
+					image.outWidth = (int)widths[i];
+					image.outHeight = (int)(image.outWidth * image.yRatio);
+				}
+				
+				images.get(0).outX = 0;
+				images.get(0).outY = 0;
+				
+				images.get(1).outX = 0;
+				images.get(1).outY = images.get(0).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				images.get(2).outX = images.get(0).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(2).outY = 0;
+				
+				images.get(3).outX = images.get(2).outX + images.get(2).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(3).outY = 0;
+				
+				return images.get(2).outHeight + 2*Config.THUMBNAIL_PADDING;
+			};
+			
+		};
+		
+		patterns[14] = new ImageRichLinePattern(){
+			public int imageCount(){
+				return 4;
+			}
+
+			public int match(ArrayList<ImageCell> images) {
+				
+				if (images.size() < 4){
+					return -1;
+				}
+				
+				for (int i=0; i<4; i++){
+					if (IMAGE_PANORAMA == getImageType(images.get(i))){
+						return -1;
+					}
+				}
+				
+				if (images.get(0).yRatio / images.get(1).yRatio ==
+						images.get(2).yRatio / images.get(3).yRatio){/*Same as single line layout*/
+					return -1;
+				}
+				
+				float leftYRatio = images.get(0).yRatio + images.get(2).yRatio;
+				float rightYRatio = images.get(1).yRatio + images.get(3).yRatio;
+				
+				float lrRatio= leftYRatio / rightYRatio;
+				float totalYRatio = (leftYRatio*rightYRatio)/(leftYRatio + rightYRatio);
+				
+				if (lrRatio<0.4f || lrRatio>2.5f || totalYRatio<0.25f || totalYRatio>0.8f){
+					return -1;
+				}
+				
+				return 4;
+			}
+
+			public int layout(ArrayList<ImageCell> images, int totalWidth) {		
+				
+				float matrix[][] = {
+						{1, 0, -1, 0, 0},
+						{0, 1, 0, -1, 0},
+						{images.get(0).yRatio, -images.get(1).yRatio, images.get(2).yRatio, -images.get(3).yRatio, 0},
+						{1, 1, 0, 0, totalWidth-4*Config.THUMBNAIL_PADDING},
+				};
+				
+				float widths[] = new float[4];
+				
+				calcMatrix(matrix, widths, 4);
+				
+				for (int i=0; i<4; i++){
+					ImageCell image = images.get(i);
+					image.outWidth = (int)widths[i];
+					image.outHeight = (int)(image.outWidth * image.yRatio);
+				}
+				
+				images.get(0).outX = 0;
+				images.get(0).outY = 0;
+				
+				images.get(1).outX = images.get(0).outWidth + 2*Config.THUMBNAIL_PADDING;
+				images.get(1).outY = 0;
+				
+				images.get(2).outX = 0;
+				images.get(2).outY = images.get(0).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				images.get(3).outX = images.get(1).outX;
+				images.get(3).outY = images.get(1).outHeight + 2*Config.THUMBNAIL_PADDING;
+				
+				return images.get(0).outHeight + images.get(2).outHeight + 4*Config.THUMBNAIL_PADDING;
 			};
 			
 		};
@@ -1061,7 +1331,9 @@ public class GalleryLayout {
 	}
 	
 	public void addImageFinish(){
-		processImageBuffer();
+		while (itemBuffer.isEmpty()){
+			processImageBuffer();
+		}
 	}
 	
 	public int getLineNum(){

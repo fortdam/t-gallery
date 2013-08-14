@@ -108,6 +108,7 @@ public class GalleryList extends ExpandableListActivity {
 
 				mImageLists[i].moveToNext();
 			}
+			galleryLayout.addImageFinish();
 			mGalleryLayouts.add(galleryLayout);
 		}
 	}
