@@ -104,7 +104,9 @@ public class GalleryList extends ExpandableListActivity {
 				int width = mImageLists[i].getInt(mImageLists[i].getColumnIndex(Media.WIDTH));
 				int height = mImageLists[i].getInt(mImageLists[i].getColumnIndex(Media.HEIGHT));
 				
-				galleryLayout.addImage(id, width, height);
+				if (width != 0 && height != 0){
+					galleryLayout.addImage(id, width, height);
+				}
 
 				mImageLists[i].moveToNext();
 			}

@@ -1331,7 +1331,7 @@ public class GalleryLayout {
 	}
 	
 	public void addImageFinish(){
-		while (itemBuffer.isEmpty()){
+		while (false == itemBuffer.isEmpty()){
 			processImageBuffer();
 		}
 	}
